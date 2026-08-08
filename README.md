@@ -3,7 +3,12 @@ C64_File_Explorer - A Python program to perform various functions on C64 disk im
 
 NOTE: This program is still in BETA. While some features do work, others do not work at all or may work incorrectly. Before testing this on any image files, please make sure you have a backup just in case!!
 
-Currently the program has a dual-pane explorer setup (similar to Norton Commander/Midnight Commander) It currently supports mounting the following C64 disk image formats: D64 - Standard 1541 disk image storing data at the sector level G64 - An enhanced 1541 disk image with data stored as GCR encoded data, just like a real 1541 stores its data D71 - Similar to the D64, except storage for a 1571 disk image at the sector level D81 - A disk image of a 1581 disk DNP - CMD (Creative Micro Designs) Native Partition image. Used on various CMD devices, a flexible partition that can be as large as 16mb DHD - CMD Hard Drive disk image
+Currently the program has a dual-pane explorer setup (similar to Norton Commander/Midnight Commander) It currently supports mounting the following C64 disk image formats: 
+D64 - Standard 1541 disk image storing data at the sector level 
+G64 - An enhanced 1541 disk image with data stored as GCR encoded data, just like a real 1541 stores its data D71 - Similar to the D64, except storage for a 1571 disk image at the sector level 
+D81 - A disk image of a 1581 disk 
+DNP - CMD (Creative Micro Designs) Native Partition image. Used on various CMD devices, a flexible partition that can be as large as 16mb 
+DHD - CMD Hard Drive disk image
 
 (Currently in progress is D2M and D4M disk images, for CMD's FD floppy drive devices) Please note that currently most functions are read-only still. The sector/editor and BAM however are able to make changes
 

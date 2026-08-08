@@ -22,7 +22,8 @@ Currently the program has a dual-pane explorer setup (similar to Norton Commande
 Please note that currently most functions are read-only still. 
 The sector/editor and BAM however are able to make changes
 
-Currently working functions: 
+Currently working functions:
+
 	Able to browse nested files. So you can open a DHD hard drive image, go into a DNP partition in the DHD, 
 	open a G64 image, and open files there!
 	

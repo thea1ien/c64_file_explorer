@@ -1,5 +1,5 @@
-c64_file_explorer
 C64_File_Explorer - A Python program to perform various functions on C64 disk images and files!
+
 
 NOTE: This program is still in BETA. While some features do work, others do not work at all or may work incorrectly. Before testing this on any image files, please make sure you have a backup just in case!!
 

@@ -74,3 +74,14 @@ TUI mode: Display PETSCII graphics files via PETSCII to ANSI translation:
 
 TUI mode: BAM (Block Allocation Map) Showing a Native-mode partition's BAM that can be edited:
 <img width="920" height="441" alt="image" src="https://github.com/user-attachments/assets/a6c4fb5f-088d-4b63-8b6f-f4536ef72918" />
+
+TUI mode: Sector Editor showing a .dnp being edited
+<img width="940" height="436" alt="image" src="https://github.com/user-attachments/assets/c29c0a2d-c109-4f93-b09e-af262fec0a94" />
+
+Pygame visual mode: Dual-pane showing a mounted .lnx file on the left and a .d81 mounted and inside a 1581 
+partition/subdirectory.
+<img width="759" height="485" alt="image" src="https://github.com/user-attachments/assets/6c07fbcc-2daa-4d53-b07e-103a9ef038b6" />
+
+Pygame visual mode: Showing off the it's PETSCII file viewer mode (no extra font needed)
+<img width="757" height="483" alt="image" src="https://github.com/user-attachments/assets/8d74ddda-1190-4921-8951-87420ffac531" />
+

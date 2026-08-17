@@ -72,6 +72,9 @@ This is still a work in progress. I still need to finish getting d2m and d4m ins
 TUI mode: Display PETSCII graphics files via PETSCII to ANSI translation:
 <img width="932" height="359" alt="image" src="https://github.com/user-attachments/assets/fb777cbb-a5ef-48e6-85db-a21e08d73aa4" />
 
+TUI mode: Displaying the same file but with the C64 Pro Mono.ttf font by Style installed
+<img width="932" height="227" alt="image" src="https://github.com/user-attachments/assets/e098dd25-237b-4aa6-98f7-2f212e68f362" />
+
 TUI mode: BAM (Block Allocation Map) Showing a Native-mode partition's BAM that can be edited:
 <img width="920" height="441" alt="image" src="https://github.com/user-attachments/assets/a6c4fb5f-088d-4b63-8b6f-f4536ef72918" />
 

@@ -65,4 +65,12 @@ This is still a work in progress. I still need to finish getting d2m and d4m ins
  come as I progress further along!
 
  Screenshots:
+ TUI mode: Dual-pane explorer windows (currently showing a mounted .G64 disk image on the left pane, and a 
+ CMD Hard-drive Native-mode partition mounted on the right pane)
  <img width="938" height="472" alt="image" src="https://github.com/user-attachments/assets/d0539a3c-5edd-4150-98e6-6ff5fef29314" />
+
+TUI mode: Display PETSCII graphics files via PETSCII to ANSI translation:
+<img width="932" height="359" alt="image" src="https://github.com/user-attachments/assets/fb777cbb-a5ef-48e6-85db-a21e08d73aa4" />
+
+TUI mode: BAM (Block Allocation Map) Showing a Native-mode partition's BAM that can be edited:
+<img width="920" height="441" alt="image" src="https://github.com/user-attachments/assets/a6c4fb5f-088d-4b63-8b6f-f4536ef72918" />

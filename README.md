@@ -63,3 +63,6 @@ This is still a work in progress. I still need to finish getting d2m and d4m ins
  as well as Home and End keys to quickly move to the top or bottom of lists Change file types Support for other
  archive formats including 4-pack zip-code, 6-pack zip-code, ARC, LBR, WRA, SDA and SFX There might be more to 
  come as I progress further along!
+
+ Screenshots:
+ <img width="938" height="472" alt="image" src="https://github.com/user-attachments/assets/d0539a3c-5edd-4150-98e6-6ff5fef29314" />

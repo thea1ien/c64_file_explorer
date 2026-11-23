@@ -1,0 +1,13 @@
+=== CMD DHD DRIVE PLATTER CAPACITY AUDIT PASS ===
+Raw len(self.payload) Size : 69289472 Bytes
+Fallback File Blocks Count  : 135331 Blocks
+
+--- Zone 2 Platter Size Registers Extracted ---
+Raw MSB Byte	(Offset 0x138): 0 (0x00)
+Raw Middle Byte (Offset 0x170): 0 (0x00)
+Raw LSB Byte	(Offset 0x1A8): 0 (0x00)
+Calculated 24-Bit Max Blocks: 16777216
+
+--- Accumulator Results ---
+Total Allocated Blocks Sum  : 167569
+Raw Theoretical Difference  : 16609647

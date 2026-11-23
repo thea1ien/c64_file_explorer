@@ -1,0 +1,38 @@
+name: Auto-Build C64 File Explorer
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'src/**'
+      - 'build.py'
+  workflow_dispatch: # Lets you also trigger a build manually from the GitHub website
+
+permissions:
+  contents: write # Allows the runner to save the rebuilt c64_file_explorer.py back to your repo
+
+jobs:
+  build-single-file:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run build.py
+        run: python build.py
+
+      - name: Commit rebuilt single-file program
+        run: |
+          git config --local user.email "github-actions[bot]@://github.com"
+          git config --local user.name "github-actions[bot]"
+          git add c64_file_explorer.py
+          git diff --staged --quiet || git commit -m "Auto-build: stitch updated src/ modules into c64_file_explorer.py"
+          git push

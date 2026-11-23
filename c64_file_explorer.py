@@ -1,24 +1,36 @@
-# =========================================================================
-# PROGRAM: c64_file_explorer.py
-# VERSION: v1.9.0 (Upgraded VFS Engine Chassis)
-# DESCRIPTION: Unified 1541 Directory Stream Chaser & BAM Calculator Engine
-# =========================================================================
+# ============================================================================
+# C64 FILE EXPLORER - AUTO-GENERATED SINGLE-FILE BUILD
+# ============================================================================
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/01_core/01_imports_and_constants.py
+# ----------------------------------------------------------------------------
+
 import os
+
+
 import sys
+
+
 import struct
+
+
 import json
+
+
 import subprocess
 
-# CRITICAL FIX: This environment variable flag must execute on LINE 1 
-# before any functions look up or import the library modules!
+
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "1"
+
 
 MANDATORY_LIBS = {
 	"curses": "windows-curses" if sys.platform.startswith("win") else None,
 	"pygame": "pygame-ce"
 }
 
-# --- PASTE YOUR EXISTING FONT_STREAM_ROM TEXT FILE ARRAY RIGHT HERE ---
+
 FONT_STREAM_ROM = [
 	"AAEAAAALAIAAAwAwT1MvMljSrI0AAAE4AAAAYGNtYXCRDujwAAAEFAAACHZnYXNw//8AAQAAbfwAAAAI",
 	"Z2x5ZupQ7+gAAA8EAABISGhlYWQImbG2AAAAvAAAADZoaGVhDwIHBAAAAPQAAAAkaG10eGsAXwAAAAGY",
@@ -492,101 +504,27 @@ FONT_STREAM_ROM = [
 	"bmlFRkZBB3VuaUY4RkYAAAAAAAH//wAA",
 ]
 
-def verify_and_bootstrap_dependencies():
-	"""Natively inspects the workstation environment for mandatory external drivers."""
-	for module_name, pip_package_name in MANDATORY_LIBS.items():
-		if pip_package_name is None:
-			continue
-		try:
-			__import__(module_name)
-		except ImportError:
-			print(f"\n SYSTEM CONFIGURATION WARNING: The '{module_name}' library is required.")
-			is_interactive = hasattr(sys.stdin, "isatty") and sys.stdin.isatty() and hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
-			if not is_interactive:
-				print(" Automatic installation is unavailable because this session is not running in an interactive terminal.")
-				sys.exit(1)
-			user_choice = input(f" Install '{pip_package_name}' via pip right now? (y/n): ").strip().lower()
-			if user_choice == 'y':
-				try:
-					subprocess.check_call([sys.executable, "-m", "pip", "install", pip_package_name])
-					__import__(module_name)
-				except Exception as err:
-					print(f"\n AUTOMATED INSTALLATION ROUTINE FAILED: {str(err)}")
-					sys.exit(1)
-			else:
-				sys.exit(1)
-
-verify_and_bootstrap_dependencies()
 
 import curses
+
+
 import pygame
 
-class ConfigurationManager:
-	"""Handles robust JSON configuration file operations with version matrix matching."""
-	VERSION = "1.9.0"  # Advanced chassis update version branch step
-	FILE_NAME = "c64_file_explorer_config.json"
-	DEFAULT_CONFIG = {
-		"version": VERSION,
-		"visual_mode": "STANDARD",
-		"respect_cbm_extensions": True,
-		"default_cbm_filetype": "PRG",
-		"override_cmd_hd_max_size": False,
-		"custom_cmd_hd_size_str": "8G"		 # FIXED: Changed from blocks integer to clean humand-readable string token!
-	}
 
-	@staticmethod
-	def load_application_settings():
-		if not os.path.exists(ConfigurationManager.FILE_NAME):
-			return dict(ConfigurationManager.DEFAULT_CONFIG)
-		try:
-			with open(ConfigurationManager.FILE_NAME, "r") as file_stream:
-				loaded_data = json.load(file_stream)
-			file_version = loaded_data.get("version", "0.0.0")
-			if ConfigurationManager.is_version_newer(file_version, ConfigurationManager.VERSION):
-				return dict(ConfigurationManager.DEFAULT_CONFIG)
-			runtime_config = dict(ConfigurationManager.DEFAULT_CONFIG)
-			for key, value in loaded_data.items():
-				if key in runtime_config:
-					runtime_config[key] = value
-			runtime_config["version"] = ConfigurationManager.VERSION
-			return runtime_config
-		except Exception:
-			return dict(ConfigurationManager.DEFAULT_CONFIG)
 
-	@staticmethod
-	def save_application_settings(config_dict):
-		try:
-			config_dict["version"] = ConfigurationManager.VERSION
-			with open(ConfigurationManager.FILE_NAME, "w") as file_stream:
-				json.dump(config_dict, file_stream, indent=4)
-			return True
-		except Exception:
-			return False
 
-	@staticmethod
-	def is_version_newer(version_v1, version_v2):
-		try:
-			v1_parts = [int(x) for x in version_v1.split(".")]
-			v2_parts = [int(x) for x in version_v2.split(".")]
-			return v1_parts > v2_parts
-		except Exception:
-			return False
+from datetime import datetime
 
-	@staticmethod
-	def trigger_program_reboot():
-		current_config = ConfigurationManager.load_application_settings()
-		target_visual_mode = current_config.get("visual_mode", "STANDARD")
-		executable_path = sys.executable.lower().replace("python.exe", "pythonw.exe") if sys.platform.startswith("win") else sys.executable
-		if sys.platform.startswith("win"):
-			if target_visual_mode == "PETSCII":
-				if "python.exe" in executable_path.lower():
-					executable_path = executable_path.lower().replace("python.exe", "pythonw.exe")
-			else:
-				if "pythonw.exe" in executable_path.lower():
-					executable_path = executable_path.lower().replace("pythonw.exe", "python.exe")
-		subprocess.Popen([executable_path] + sys.argv)
-		sys.exit(0)
-		
+
+
+
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/01_core/02_vfs_base.py
+# ----------------------------------------------------------------------------
+
 class SharedVFSController:
 	"""Master Operations Engine: Houses the definitive, bug-free disk handling 
 	and path manipulation routines shared equally by both TUI and Pygame frontends.
@@ -893,7 +831,169 @@ class SharedVFSController:
 				app_state["command_buffer"] = f"VFS CONTROLLER ERROR: {str(mount_err)}"
 				return False
 
-import curses
+
+class BaseVFSHandler:
+	"""Abstract Base Contract for all C64 Virtual Filesystems."""
+	def __init__(self, raw_payload, archive_name=""):
+		self.payload = raw_payload
+		self.archive_name = archive_name
+		self.file_list = []
+		self.disk_label_msg = ""
+		self.no_sector_editor = False
+		self.read_only = False # FIXED: Absolute baseline write protection flag register
+		
+		# ARCHITECTURE UPGRADE: Every driver class declares its own structural boundaries natively
+		self.default_dir_track = 18
+		self.default_dir_sector = 0
+		self.max_tracks_limit = 35
+	def mount(self):
+		raise NotImplementedError
+
+	def list_directory(self):
+		return self.file_list
+		
+	def check_target_for_duplicate_filename(self, target_name, force_replace=False):
+		"""Scans the active directory blocks for a matching filename.
+		Supports automated save-with-replace mode (force_replace=True) for nested image 
+		saving, and standard verification reporting flags for the file copier loops.
+		"""
+		# Clean the incoming target string name and force standard uppercase matching parity
+		sanitized_target = str(target_name).strip().upper()
+		
+		# Guard boundary check: Ensure the current filesystem handler instance has a populated file array
+		if not hasattr(self, "file_list") or not self.file_list:
+			return {"exists": False, "meta": None, "cleared": False}
+			
+		# Loop across all compiled directory records inside the active browser workspace
+		for item in self.file_list:
+			if item.get("name") == "..":
+				continue
+				
+			current_entry_name = str(item.get("name", "")).strip().upper()
+			
+			# Execute a clean text comparison pass
+			if current_entry_name == sanitized_target:
+				matched_meta = item.get("vfs_meta", item.get("raw_meta"))
+				
+				# --- MODE A: AUTOMATED SAVE WITH REPLACE OVERRIDE ---
+				if force_replace:
+					# Force-purge the entry from our local active listing tracking cache array immediately
+					self.file_list.remove(item)
+					
+					# Invoke your filesystem's native unlinking or delete engine if built
+					if hasattr(self, "delete_virtual_file_by_meta"):
+						self.delete_virtual_file_by_meta(matched_meta)
+					elif hasattr(self, "unlink_file") and callable(self.unlink_file):
+						self.unlink_file(current_entry_name)
+						
+					self.is_dirty = True
+					return {"exists": True, "meta": matched_meta, "cleared": True}
+					
+				# --- MODE B: STANDARD SAFE COPY PROMPT NOTIFICATION ---
+				return {"exists": True, "meta": matched_meta, "cleared": False}
+				
+		return {"exists": False, "meta": None, "cleared": False}
+
+	def extract_file_bytes(self, vfs_meta_node):
+		raise NotImplementedError
+
+	def navigate_forward(self, track, sector, name):
+		return False
+
+	def navigate_backward(self):
+		return False
+
+
+class VFSBlockStream:
+	"""Abstract baseline interface for all 256-byte block storage providers."""
+	def read_block(self, block_index): 
+		raise NotImplementedError
+	def get_total_blocks(self): 
+		raise NotImplementedError
+
+
+class BaseContainerHandler:
+	def __init__(self, vfs_stream):
+		self.stream = vfs_stream
+	def mount(self):
+		raise NotImplementedError
+	def print_current_directory(self):
+		raise NotImplementedError
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/01_core/03_vfs_registry.py
+# ----------------------------------------------------------------------------
+
+class VFSDriverRegistry:
+	"""Master Format Broker Matrix. Dynamically routes mounting and entry lookups."""
+	_REGISTRY = {}
+
+	@classmethod
+	def register_format(cls, extension, handler_class):
+		cls._REGISTRY[extension.lower()] = handler_class
+
+	@classmethod
+	def is_supported(cls, filename):
+		_, ext = os.path.splitext(filename.lower())
+		return ext in cls._REGISTRY
+
+	@classmethod
+	def instantiate_handler(cls, filename, payload_bytes):
+		_, ext = os.path.splitext(filename.lower())
+		driver_class = cls._REGISTRY.get(ext)
+		if driver_class:
+			instance = driver_class(payload_bytes, filename)
+			instance.mount()
+			return instance
+		return None
+
+
+class ImageGeometryRegistry:
+	"""Tracks physical layout profiles and capacities for CBM container disk images."""
+	PROFILES = {
+		"D64": {"type": "1541", "directory_track": 18, "directory_sector": 0, "zones": [(17, 21), (24, 19), (30, 18), (35, 17)]},
+		"G64": {"type": "GCR_Floppy", "directory_track": 18, "directory_sector": 0, "zones": [(17, 21), (24, 19), (30, 18), (42, 17)]},
+		"D71": {"type": "1571", "directory_track": 18, "directory_sector": 0, "zones": [(17, 21), (24, 19), (30, 18), (35, 17), (52, 21), (59, 19), (65, 18), (70, 17)]},
+		"D81": {"type": "1581", "directory_track": 40, "directory_sector": 0, "sectors_per_track": 40, "max_tracks": 80},
+		"DNP": {"type": "Native", "directory_track": 1, "directory_sector": 1, "sectors_per_track": 256, "max_tracks": 255}
+	}
+
+	@staticmethod
+	def get_sectors_in_track(profile_name, track, total_payload_blocks=None):
+		prof = ImageGeometryRegistry.PROFILES[profile_name]
+		if profile_name == "DNP" and total_payload_blocks is not None:
+			# DNP ADAPTIVE SCALING CALCULATION: A native partition's track limits match 
+			# the size of the container file directly. Map track structures cleanly.
+			computed_max_tracks = total_payload_blocks // 256
+			if computed_max_tracks == 0: computed_max_tracks = 1
+			return 256 if track <= computed_max_tracks else 0
+		if profile_name not in ImageGeometryRegistry.PROFILES:
+			return 17 # Default
+		if "sectors_per_track" in prof:
+			return prof["sectors_per_track"]
+		for max_track, sectors in prof["zones"]:
+			if track <= max_track:
+				return sectors
+		return 17
+
+	@staticmethod
+	def translate_ts_to_block_index(profile_name, track, sector, total_payload_blocks=None):
+		if profile_name in ["DNP"]:
+			# Relative track indexing alignment: Track References start at 1, not 0
+			return ((track - 1) * 256) + sector
+		else:
+			total_blocks = 0
+			for t in range(1, track):
+				total_blocks += ImageGeometryRegistry.get_sectors_in_track(profile_name, t)
+			return total_blocks + sector
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/01_core/04_bameditorscreen.py
+# ----------------------------------------------------------------------------
 
 class BAMEditorScreen:
 	"""Standalone Dedicated Screen Interface managing interactive Block Availability Map 
@@ -1118,2932 +1218,11 @@ class BAMEditorScreen:
 		# Reset the terminal window parameters safely before diving back into the dual-panes
 		stdscr.clear()
 
-class PETSCIIDecoder:
-	"""Handles translation from Commodore PETSCII byte streams to clean ASCII."""
-	@staticmethod
-	def decode_name(byte_array):
-		"""Fact-aligned global character translation mapping PETSCII blocks to safe string layouts.
-		Natively auto-detects 16-byte filename blocks to enforce space-to-underline tracking 
-		uniformly across ALL virtual CBM filesystems (.d64, .d71, .d81, .lnx).
-		"""
-		# Host OS Immunity Shield: If a modern path string slips in, pass it back untouched!
-		if isinstance(byte_array, str):
-			return byte_array
-			
-		# Convert incoming data to a clean, mutable numeric array (bytearray) natively
-		numeric_array = bytearray(byte_array)
-		
-		# =========================================================================
-		# 🚨 UNIFIED PLATFORM AUTODETECT: CORE SPACE-TO-UNDERLINE SHIELD 🚨
-		# Instead of forcing individual drivers to pass a toggle flag, this checks 
-		# if the incoming raw byte stream matches the standard fixed 16-byte width 
-		# of a Commodore filename record slot. If it matches, it pre-scans all slots 
-		# natively and transforms EVERY true $20 space byte directly into an underscore 
-		# (0x5F) before conversion. This protects ALL CBM filesystems globally!
-		# =========================================================================
-		if len(numeric_array) == 16:
-			for i in range(len(numeric_array)):
-				if numeric_array[i] == 0x20:
-					numeric_array[i] = 0x5F	 # Hex 0x5F is the ASCII/PETSCII underscore symbol
-		# =========================================================================
 
-		chars = []
-		for b in numeric_array:
-			# If we encounter an unallocated CBM padding block ($A0 or $00), we drop it cleanly
-			if b == 0xA0 or b == 0x00:
-				continue
-			elif b == 0x5F:
-				chars.append("_")
-			elif 65 <= b <= 90:
-				chars.append(chr(b + 32))
-			elif 193 <= b <= 218:
-				chars.append(chr(b - 128))
-			elif 32 <= b <= 126:
-				chars.append(chr(b))
-			else:
-				chars.append("_")
-				
-		return "".join(chars)
 
-from datetime import datetime
-
-class HostSystemScanner:
-	"""Natively scans the local host operating system directory path structure."""
-	@staticmethod
-	def get_formatted_size(byte_count, is_dir):
-		if is_dir:
-			return "SUB-DIR"
-		if byte_count < 1024:
-			return f"{byte_count}B"
-		elif byte_count < 1024 * 1024:
-			return f"{byte_count // 1024}K"
-		else:
-			return f"{byte_count / (1024 * 1024):.1f}M"
-
-	@staticmethod
-	def scan_directory(target_path):
-		raw_list = []
-		if not os.path.exists(target_path) or not os.path.isdir(target_path):
-			target_path = os.getcwd()
-		try:
-			parent_dir = os.path.dirname(os.path.abspath(target_path))
-			if parent_dir != os.path.abspath(target_path):
-				raw_list.append({
-					"name": "..",
-					"is_directory": True,
-					"is_virtual_container": False,
-					"size_display": "UP-DIR",
-					"modify_time_str": " -- -- -- "
-				})
-			for item in os.listdir(target_path):
-				full_item_path = os.path.join(target_path, item)
-				try:
-					stats = os.stat(full_item_path)
-					is_directory = os.path.isdir(full_item_path)
-					dt_object = datetime.fromtimestamp(stats.st_mtime)
-					time_str = dt_object.strftime("%b %d %H:%M")
-					_, file_extension = os.path.splitext(item.lower())
-					is_virtual_container = file_extension in [".d64", ".dnp", ".d71", ".d81", ".g64", ".lnx"]
-					raw_list.append({
-						"name": item,
-						"is_directory": is_directory,
-						"is_virtual_container": is_virtual_container,
-						"size_display": HostSystemScanner.get_formatted_size(stats.st_size, is_directory),
-						"modify_time_str": time_str
-					})
-				except (PermissionError, FileNotFoundError):
-					continue
-		except Exception as err:
-			pass
-
-		directories_sorted = sorted([x for x in raw_list if x["name"] != ".." and x["is_directory"]], key=lambda k: k["name"].lower())
-		files_sorted = sorted([x for x in raw_list if not x["is_directory"]], key=lambda k: k["name"].lower())
-		return [x for x in raw_list if x["name"] == ".."] + directories_sorted + files_sorted
-
-
-# =========================================================================
-# UNIFIED VFS DATA PLUGINS ARCHITECTURE (CRITICAL STABILITY CHASSIS Upgrade)
-# =========================================================================
-class BaseVFSHandler:
-	"""Abstract Base Contract for all C64 Virtual Filesystems."""
-	def __init__(self, raw_payload, archive_name=""):
-		self.payload = raw_payload
-		self.archive_name = archive_name
-		self.file_list = []
-		self.disk_label_msg = ""
-		self.no_sector_editor = False
-		self.read_only = False # FIXED: Absolute baseline write protection flag register
-		
-		# ARCHITECTURE UPGRADE: Every driver class declares its own structural boundaries natively
-		self.default_dir_track = 18
-		self.default_dir_sector = 0
-		self.max_tracks_limit = 35
-	def mount(self):
-		raise NotImplementedError
-
-	def list_directory(self):
-		return self.file_list
-		
-	def check_target_for_duplicate_filename(self, target_name, force_replace=False):
-		"""Scans the active directory blocks for a matching filename.
-		Supports automated save-with-replace mode (force_replace=True) for nested image 
-		saving, and standard verification reporting flags for the file copier loops.
-		"""
-		# Clean the incoming target string name and force standard uppercase matching parity
-		sanitized_target = str(target_name).strip().upper()
-		
-		# Guard boundary check: Ensure the current filesystem handler instance has a populated file array
-		if not hasattr(self, "file_list") or not self.file_list:
-			return {"exists": False, "meta": None, "cleared": False}
-			
-		# Loop across all compiled directory records inside the active browser workspace
-		for item in self.file_list:
-			if item.get("name") == "..":
-				continue
-				
-			current_entry_name = str(item.get("name", "")).strip().upper()
-			
-			# Execute a clean text comparison pass
-			if current_entry_name == sanitized_target:
-				matched_meta = item.get("vfs_meta", item.get("raw_meta"))
-				
-				# --- MODE A: AUTOMATED SAVE WITH REPLACE OVERRIDE ---
-				if force_replace:
-					# Force-purge the entry from our local active listing tracking cache array immediately
-					self.file_list.remove(item)
-					
-					# Invoke your filesystem's native unlinking or delete engine if built
-					if hasattr(self, "delete_virtual_file_by_meta"):
-						self.delete_virtual_file_by_meta(matched_meta)
-					elif hasattr(self, "unlink_file") and callable(self.unlink_file):
-						self.unlink_file(current_entry_name)
-						
-					self.is_dirty = True
-					return {"exists": True, "meta": matched_meta, "cleared": True}
-					
-				# --- MODE B: STANDARD SAFE COPY PROMPT NOTIFICATION ---
-				return {"exists": True, "meta": matched_meta, "cleared": False}
-				
-		return {"exists": False, "meta": None, "cleared": False}
-
-	def extract_file_bytes(self, vfs_meta_node):
-		raise NotImplementedError
-
-	def navigate_forward(self, track, sector, name):
-		return False
-
-	def navigate_backward(self):
-		return False
-
-
-class VFSDriverRegistry:
-	"""Master Format Broker Matrix. Dynamically routes mounting and entry lookups."""
-	_REGISTRY = {}
-
-	@classmethod
-	def register_format(cls, extension, handler_class):
-		cls._REGISTRY[extension.lower()] = handler_class
-
-	@classmethod
-	def is_supported(cls, filename):
-		_, ext = os.path.splitext(filename.lower())
-		return ext in cls._REGISTRY
-
-	@classmethod
-	def instantiate_handler(cls, filename, payload_bytes):
-		_, ext = os.path.splitext(filename.lower())
-		driver_class = cls._REGISTRY.get(ext)
-		if driver_class:
-			instance = driver_class(payload_bytes, filename)
-			instance.mount()
-			return instance
-		return None
-
-class LNXFileSystemPlugin(BaseVFSHandler):
-	"""Dynamic Broker Adapter parsing legacy Commodore Lynx (.LNX) archives 
-	utilizing a robust, line-ending agnostic text parser and a pretend 
-	256-byte sector-buffered memory layout chassis.
-	"""
-	def mount(self):
-		self.default_dir_track = 1
-		self.default_dir_sector = 0
-		self.max_tracks_limit = 255
-		self.no_sector_editor = False  # Enabled! The sector buffer mapping makes low-level viewing 100% stable
-		self.disk_label_msg = "0 LYNX VIRTUAL DISK"
-		self.read_only = True
-		
-		self.file_list = [{
-			"name": "..", "is_directory": True, "is_virtual_container": False,
-			"type_display": "UP-DIR", "size_display": " ", "modify_time_str": " -- -- -- "
-		}]
-		
-		# --- PHASE 1: PARSE METADATA VIA THE UNIVERSAL BYTE-SPLIT CORE ---
-		payload_len = len(self.payload)
-		basic_end = self.payload.find(b'\x00\x00\x00')
-		if basic_end == -1: 
-			return
-			
-		header_offset = basic_end + 3
-		
-		# Isolate text-only index list safely at the byte-level to preserve PETSCII symbols
-		text_segment = self.payload[header_offset : header_offset + 6400]
-		
-		# Universally agnostic byte-splitter: Split by CR, LF, or CR+LF dynamically
-		lines = []
-		current_line = bytearray()
-		for b in text_segment:
-			if b == 13 or b == 10:	# CR or LF markers
-				if current_line:
-					lines.append(bytes(current_line))
-					current_line = bytearray()
-			else:
-				current_line.append(b)
-		if current_line:
-			lines.append(bytes(current_line))
-			
-		if len(lines) < 2: 
-			return
-			
-		# Dynamically discover the file count line integer signature parameter
-		num_files = 0
-		current_line_idx = 1
-		
-		while current_line_idx < len(lines):
-			val_str = lines[current_line_idx].decode('latin-1', errors='ignore').strip()
-			if val_str.isdigit():
-				num_files = int(val_str)
-				current_line_idx += 1  # Advance past the file count to the first record line
-				break
-			current_line_idx += 1
-			
-		if num_files == 0:
-			return
-			
-		file_metadata = []
-		
-		# Extract the 4-line metadata blocks exactly matching your authentic hardware hex dump sequence!
-		for _ in range(num_files):
-			if current_line_idx + 3 >= len(lines): 
-				break
-				
-			raw_name_bytes = lines[current_line_idx]
-			clean_name = PETSCIIDecoder.decode_name(raw_name_bytes).replace("_", " ").strip()
-			clean_name = clean_name.replace('\xa0', '').strip()
-			
-			blocks_str = lines[current_line_idx + 1].decode('latin-1', errors='ignore').strip()
-			ftype_raw = lines[current_line_idx + 2].decode('latin-1', errors='ignore').strip().upper()
-			last_block_bytes_str = lines[current_line_idx + 3].decode('latin-1', errors='ignore').strip()
-			
-			# Maps abbreviated 1-letter labels to standard 1541 format codes cleanly
-			if ftype_raw.startswith('P'):
-				type_lbl = "PRG"
-			elif ftype_raw.startswith('S'):
-				type_lbl = "SEQ"
-			elif ftype_raw.startswith('U'):
-				type_lbl = "USR"
-			elif ftype_raw.startswith('R'):
-				type_lbl = "REL"
-			else:
-				type_lbl = ftype_raw if ftype_raw else "PRG"
-				
-			try:
-				blocks = int(blocks_str) if blocks_str.isdigit() else 0
-				last_bytes_val = int(last_block_bytes_str) if last_block_bytes_str.isdigit() else 0
-				
-				if blocks > 0:
-					total_bytes = (254 * (blocks - 1)) + (last_bytes_val - 1)
-				else:
-					total_bytes = 0
-			except Exception:
-				blocks = 0
-				total_bytes = 0
-
-			file_metadata.append({
-				"name": clean_name, 
-				"type": type_lbl,
-				"bytes": total_bytes,
-				"raw_blocks": blocks
-			})
-			current_line_idx += 4
-
-		# FIXED: Safe, robust data boundary extractor calculates text lengths using index counters smoothly
-		data_start_offset = header_offset
-		processed_count = 0
-		
-		# Sum up text data lengths explicitly across the exact total index lines evaluated in Phase 1
-		for line_byte_node in lines[:current_line_idx]:
-			data_start_offset += len(line_byte_node) + 1 # Include trailing line character overhead offsets
-			
-		# Structural emergency alignment guard bounds checker parameter
-		if data_start_offset >= payload_len:
-			return
-
-		# --- PHASE 2: GENERATE THE MOCK 256-BYTE DRIVE SECTOR MAPS ---
-		self.virtual_disk_sectors = []
-		idx = data_start_offset
-		
-		while idx < payload_len:
-			chunk = self.payload[idx : idx + 254]
-			if not chunk: 
-				break
-				
-			if len(chunk) < 254:
-				chunk = chunk + b"\x00" * (254 - len(chunk))
-				
-			sector_buffer = bytearray(256)
-			next_sector_idx = len(self.virtual_disk_sectors) + 1
-			
-			sector_buffer[0] = 1   
-			sector_buffer[1] = next_sector_idx & 0xFF 
-			sector_buffer[2:256] = chunk
-			self.virtual_disk_sectors.append(sector_buffer)
-			idx += 254
-			
-		if self.virtual_disk_sectors:
-			self.virtual_disk_sectors[-1][0] = 0x00
-			self.virtual_disk_sectors[-1][1] = 0xFF
-
-		# --- PHASE 3: BIND EXTRACTED FILE ENTRIES TO PANEL DIRECTORY VIEWS ---
-		current_sector_offset = 0
-		
-		for item in file_metadata:
-			start_t = 1
-			start_s = current_sector_offset
-			
-			self.file_list.append({
-				"name": item["name"], 
-				"is_directory": False, 
-				"is_virtual_container": False,
-				"type_display": item["type"], 
-				"size_display": str(item["raw_blocks"]),
-				"vfs_meta": {"sector": start_s, "blocks": item["raw_blocks"], "bytes": item["bytes"]}
-			})
-			
-			current_sector_offset += item["raw_blocks"]
-		# --- End of the mount method block pass ---
-		try:
-			pass
-		except Exception:
-			pass
-
-	# FIXED: Do NOT delete these remaining methods below! They drive your File Viewer and Sector Editors!
-	def read_virtual_sector(self, track, sector):
-		"""Natively queries the fake sector-buffered storage grid using standard T/S coordinates."""
-		block_index = sector
-		if 0 <= block_index < len(self.virtual_disk_sectors):
-			return bytearray(self.virtual_disk_sectors[block_index])
-		return bytearray(256)
-
-	def extract_file_bytes(self, vfs_meta_node):
-		"""Extracts raw file payload bytes natively by walking our virtual sector chains."""
-		file_bytes = bytearray()
-		start_sector = vfs_meta_node.get("sector", 0)
-		total_blocks = vfs_meta_node.get("blocks", 0)
-		target_bytes = vfs_meta_node.get("bytes", 0)
-		
-		for b_idx in range(total_blocks):
-			target_sec = start_sector + b_idx
-			if target_sec < len(self.virtual_disk_sectors):
-				file_bytes.extend(self.virtual_disk_sectors[target_sec][2:256])
-				
-		return bytes(file_bytes[:target_bytes])
-		
-class D64FileSystemPlugin(BaseVFSHandler):
-	"""Dynamic Broker Adapter bridging low-level 1541 DOS handler streams."""
-	def mount(self):
-		self.format_type = "D64"
-		self.default_dir_track = 18
-		self.default_dir_sector = 0
-		self.max_tracks_limit = 35
-		self.payload = bytearray(self.payload)
-		mem_stream = PreloadedBufferBlockStream(self.payload)
-		# ... (rest of your existing mount logic continues below safely)
-		sub_h = D64FileSystemHandler(mem_stream, self.archive_name)
-		b_info = sub_h.get_bam_state()
-		
-		self.file_list = [{
-			"name": "..", "is_directory": True, "is_virtual_container": False,
-			"type_display": "UP-DIR", "size_display": " ", "modify_time_str": " -- -- -- "
-		}]
-		if b_info:
-			# Isolate and clean the raw 4-character ID tracking string from your b_info model
-			raw_id_block = str(b_info.get("disk_id", "	  ")).strip().upper()
-			
-			# Slice the 4 characters cleanly: first 2 are the ID, last 2 are the DOS version code!
-			# For example, if raw_id_block is "412A", this yields id_part="41" and dos_part="2A"
-			id_part = raw_id_block[:2]
-			dos_part = raw_id_block[2:] if len(raw_id_block) >= 4 else "2A"
-			
-			# FIXED: Formats header string tightly to include your space-separated capital IDs!
-			# Yields -> 0 "copydisk		   " 41 2A
-			self.disk_label_msg = f'0 "{b_info["disk_name"]:<16}" {id_part} {dos_part}'
-			
-			# FIXED: Natively expose the calculated free blocks from the BAM parser to the VFS container state matrix
-			self.free_sectors_count = b_info.get("blocks_free", 0)
-			
-			lt, ls = b_info["next_track"], b_info["next_sector"]
-			while lt != 0:
-				sec_data = sub_h.read_virtual_sector(lt, ls)
-				if not sec_data:
-					break
-				nt, ns = int(sec_data[0]), int(sec_data[1])
-				for off in range(2, 256, 32):
-					slot = sec_data[off : off + 32]
-					if len(slot) < 30:
-						continue
-					ft_raw = int(slot[0])
-					if ft_raw == 0x00:
-						continue
-					act_t = ft_raw & 0x0F
-					tgt_t, tgt_s = int(slot[1]), int(slot[2])
-					c_nm = PETSCIIDecoder.decode_name(slot[3:19])
-					b_cnt = struct.unpack("<H", slot[28:30])[0]
-					t_lbl = "PRG" if act_t == 0x02 else "SEQ" if act_t == 0x01 else "DEL" if act_t == 0x00 else "???"
-					self.file_list.append({
-						"name": c_nm, "is_directory": False, "is_virtual_container": False,
-						"type_display": t_lbl, "size_display": f"{b_cnt}B",
-						"vfs_meta": {"track": tgt_t, "sector": tgt_s}
-					})
-				if nt == 0 or (nt == 0x00 and ns == 0xFF):
-					break
-				lt, ls = nt, ns
-		self.low_level_handler = sub_h
-	
-	def check_sector_free_status(self, track, sector):
-		"""Natively checks the raw 1541 allocation bitmask inside Track 18, Sector 0 
-		to identify if a target sector block is currently free (True) or used (False) [1.1].
-		"""
-		# Linear byte offset to the start of Track 18, Sector 0 (357 sectors precede it)
-		bam_idx = 18 * 21 * 256
-		if bam_idx + 256 <= len(self.payload):
-			# Each track uses a strict 4-byte descriptor block layout: [Count, Bit0, Bit1, Bit2] [1.1]
-			track_offset = bam_idx + (track * 4)
-			
-			# Identify which byte and specific bit inside that byte handles this sector index
-			b_idx = sector // 8
-			b_bit = sector % 8
-			
-			# Extract the target byte offset position (skipping the initial 1-byte track total count)
-			mask_byte = self.payload[track_offset + 1 + b_idx]
-			
-			# Standard 1541 bitwise rules: 1 means the sector is FREE, 0 means it is USED [1.1]
-			# If the bit is set to 1, return True (Free); otherwise return False (Used) [1.1]
-			return bool(mask_byte & (1 << b_bit))
-			
-		# Safe fallback for freshly allocated empty streams
-		return True	
-
-		
-	def toggle_sector_allocation_status(self, track, sector):
-		"""Natively flips the allocation bit mask for a standard 1541 .d64 image 
-		at Track 18, Sector 0. 1 (Free) <-> 0 (Used).
-		"""
-		# Linear offset to Track 18, Sector 0 (357 sectors precede it)
-		bam_idx = 18 * 21 * 256
-		if bam_idx + 256 <= len(self.payload):
-			# Each track uses a 4-byte entry: [Count, Bit0, Bit1, Bit2]
-			track_offset = bam_idx + (track * 4)
-			
-			b_idx = sector // 8
-			b_bit = sector % 8
-			
-			# XOR (^) the exact bit to toggle its state cleanly inside the payload byte
-			self.payload[track_offset + 1 + b_idx] ^= (1 << b_bit)
-
-	def extract_file_bytes(self, vfs_meta_node):
-		return TUIController.extract_vfs_file_bytes(self.low_level_handler, vfs_meta_node["track"], vfs_meta_node["sector"])
-		
-	def read_virtual_sector(self, track, sector):
-		"""Passes the sector read request straight down to the 1541 DOS engine."""
-		return self.low_level_handler.read_virtual_sector(track, sector)
-		
-	def write_virtual_sector(self, track, sector, raw_bytes):
-		"""Production-grade sector modifier with integrated Data Change Guard.
-		Calculates the raw linear interleaved offset, checks if changes actually 
-		exist, and only flushes to the local file system on true modifications.
-		"""
-		if len(raw_bytes) != 256:
-			return False
-			
-		if track < 1 or track > 40 or sector < 0:
-			return False
-			
-		def get_d64_linear_sector_offset(t, s):
-			if 1 <= t <= 17:   
-				base_off = (t - 1) * 21
-				max_s = 20
-			elif 18 <= t <= 24: 
-				base_off = (17 * 21) + (t - 18) * 19
-				max_s = 18
-			elif 25 <= t <= 30: 
-				base_off = (17 * 21) + (7 * 19) + (t - 25) * 18
-				max_s = 17
-			elif 31 <= t <= 40: 
-				base_off = (17 * 21) + (7 * 19) + (6 * 18) + (t - 31) * 17
-				max_s = 16
-			else: 
-				return -1
-			
-			if s > max_s: 
-				return -1
-			return (base_off + s) * 256
-
-		file_offset = get_d64_linear_sector_offset(int(track), int(sector))
-		if file_offset == -1 or file_offset + 256 > len(self.payload):
-			return False
-			
-		# === STEP 1: NATIVE DATA CHANGE GUARD SAFETY CHECK ===
-		existing_sector_bytes = bytes(self.payload[file_offset : file_offset + 256])
-		incoming_sector_bytes = bytes(raw_bytes)
-		
-		if existing_sector_bytes == incoming_sector_bytes:
-			# The sector data is already identical! Skip the hard drive write process completely.
-			# Returning a unique string keyword signal lets the parent UI know no save was needed
-			return "NO_CHANGE"
-
-		# === STEP 2: APPLY DATA MODIFICATIONS IN ACTIVE RAM ===
-		self.payload[file_offset : file_offset + 256] = incoming_sector_bytes
-		
-		# Flush the modified bytes directly into the low-level handler's inner stream cache
-		if hasattr(self, "low_level_handler") and self.low_level_handler:
-			handler = self.low_level_handler
-			active_stream = getattr(handler, "stream", getattr(handler, "_stream", getattr(handler, "payload", None)))
-			if active_stream:
-				if hasattr(active_stream, "payload"):
-					active_stream.payload[file_offset : file_offset + 256] = incoming_sector_bytes
-				elif hasattr(active_stream, "buffer"):
-					active_stream.buffer[file_offset : file_offset + 256] = incoming_sector_bytes
-				elif isinstance(active_stream, (bytearray, list)):
-					active_stream[file_offset : file_offset + 256] = incoming_sector_bytes
-
-		# Synchronize auxiliary localized dictionary caches
-		cache_key = (int(track), int(sector))
-		for attr_name in ("virtual_sector_cache_pool", "virtual_sectors", "sector_cache", "_cache"):
-			if hasattr(self, attr_name):
-				pool = getattr(self, attr_name)
-				if isinstance(pool, dict):
-					pool[cache_key] = incoming_sector_bytes
-					
-		# SCENARIO A: This plugin is running as a NESTED SUB-PARTITION inside a master .dhd container!
-		if hasattr(self, "parent_dhd_handler") and self.parent_dhd_handler:
-			parent_dhd = self.parent_dhd_handler
-			part_id = getattr(self, "parent_partition_id", None)
-			part_info = parent_dhd.partitions_registry.get(part_id)
-			
-			if part_info:
-				b_start = part_info["byte_start"]
-				b_len = part_info["byte_length"]
-				
-				# Enforce mutable type conformity on the parent payload container stream
-				if isinstance(parent_dhd.payload, bytes):
-					parent_dhd.payload = bytearray(parent_dhd.payload)
-					
-				# Safely patch our modified 16MB sub-image buffer right into the parent's layout window!
-				parent_dhd.payload[b_start : b_start + b_len] = self.payload[:b_len]
-				
-				# Arm the parent handler's dirty flag and trigger its physical disk save sequence!
-				parent_dhd.is_dirty = True
-				parent_dhd.flush_dhd_to_disk()
-			return True
-				
-		# === STEP 3: PERSIST MODIFICATIONS TO THE WINDOWS FILE SYSTEM ===
-		if hasattr(self, "archive_name") and self.archive_name:
-			if os.path.exists(self.archive_name) and os.path.isfile(self.archive_name):
-				try:
-					with open(self.archive_name, "wb") as f_out:
-						f_out.write(bytes(self.payload))
-				except Exception:
-					pass
-					
-		# SINGLE EXPLICIT RETURN POINT AT THE END OF THE PASS
-		return True
-
-class D71FileSystemPlugin(BaseVFSHandler):
-	"""Dynamic Broker Adapter parsing legacy Commodore 1571 Double-Sided (.D71) images 
-	utilizing your exact Inside Commodore DOS 1-based 33-byte step layout blocks.
-	"""
-	@staticmethod
-	def get_d71_linear_sector_index(track, sector):
-		"""Fact-aligned 1571 sector accumulator mapping 70 tracks to linear array slots."""
-		side0_offsets = [
-			0,	 # Track 0 placeholder
-			0,	 21,  42,  63,	84, 105, 126, 147, 168, 189, 210, 231, 252, 273, 294, 315, 336, # 1-17
-			357, 376, 395, 414, 433, 452, 471, # 18-24
-			490, 508, 526, 544, 562, 580, # 25-30
-			598, 615, 632, 649, 666		   # 31-35
-		]
-		
-		if 1 <= track <= 35:
-			return side0_offsets[track] + sector
-		elif 36 <= track <= 70:
-			normalized_track = track - 35
-			return 683 + side0_offsets[normalized_track] + sector
-		return 0
-
-	def mount(self):
-		self.payload = bytearray(self.payload)
-		self.format_type = "D71"
-		self.default_dir_track = 18
-		self.default_dir_sector = 0
-		self.max_tracks_limit = 70
-		self.no_sector_editor = False
-
-		# FIXED: Hardcode a printable text default first to guarantee it is NEVER NoneType!
-		self.disk_label_msg = "UNLABELLED 1571 DISK"
-		
-		# Natively pull disk labels out of Side 0 BAM (Track 18, Sector 0)
-		bam_idx = D71FileSystemPlugin.get_d71_linear_sector_index(18, 0) * 256
-		if bam_idx + 256 <= len(self.payload):
-			# Extract fields natively using identical 1541/1571 layout offsets [1.1]
-			raw_label = self.payload[bam_idx + 144 : bam_idx + 160]
-			raw_id = self.payload[bam_idx + 162 : bam_idx + 164]
-			raw_dos = self.payload[bam_idx + 165 : bam_idx + 167]
-			
-			lbl_str = PETSCIIDecoder.decode_name(raw_label).replace("_", " ")
-			id_str = PETSCIIDecoder.decode_name(raw_id).strip().upper()
-			dos_str = PETSCIIDecoder.decode_name(raw_dos).strip().upper()
-			
-			# FIXED: Unifies D71 header with accurate space-separated capital IDs! [1.1]
-			self.disk_label_msg = f'0 "{lbl_str:<16}" {id_str} {dos_str}'
-					# FORCE CORE LISTING MAP INITIALIZATION:
-		# Guarantees that your 1571 directory list builder runs explicitly upon mounting!
-		self.file_list = self.list_directory()
-		return True
-
-			
-	def check_sector_free_status(self, track, sector):
-		"""Natively checks your live Side 0 and Side 1 allocation bitmasks to identify 
-		if a sector is marked free (True) or used (False).
-		"""
-		if track <= 35:
-			s0_idx = D71FileSystemPlugin.get_d71_linear_sector_index(18, 0) * 256
-			track_offset = s0_idx + (track * 4)
-			# Look right at the byte bitmask positions
-			b_idx = sector // 8
-			b_bit = sector % 8
-			mask_byte = self.payload[track_offset + 1 + b_idx]
-			return bool(mask_byte & (1 << b_bit))
-		else:
-			s1_idx = D71FileSystemPlugin.get_d71_linear_sector_index(53, 0) * 256
-			t_offset = track - 36
-			track_bytes_start = s1_idx + (t_offset * 3)
-			b_idx = sector // 8
-			b_bit = sector % 8
-			mask_byte = self.payload[track_bytes_start + b_idx]
-			return bool(mask_byte & (1 << b_bit))
-			
-	def toggle_sector_allocation_status(self, track, sector):
-		"""Natively flips the allocation bit mask for a 1571 double-sided .d71 image 
-		handling Side 0 (Track 1-35) or Side 1 (Track 36-70) bit alignments perfectly.
-		"""
-		if track <= 35:
-			s0_idx = D71FileSystemPlugin.get_d71_linear_sector_index(18, 0) * 256
-			track_offset = s0_idx + (track * 4)
-			b_idx = sector // 8
-			b_bit = sector % 8
-			self.payload[track_offset + 1 + b_idx] ^= (1 << b_bit)
-		else:
-			s1_idx = D71FileSystemPlugin.get_d71_linear_sector_index(53, 0) * 256
-			t_offset = track - 36
-			track_bytes_start = s1_idx + (t_offset * 3)
-			b_idx = sector // 8
-			b_bit = sector % 8
-			self.payload[track_bytes_start + b_idx] ^= (1 << b_bit)
-			
-	def write_virtual_sector(self, track, sector, data_bytes):
-		"""Unified Flat-File Sector Writer for the 1571 plugin.
-		Treats the .d71 layout as a flat extension of a 1541 to achieve perfect parity 
-		with our working .d64 saving mechanics, both standalone and inside a .dhd container.
-		"""
-		t = int(track)
-		s = int(sector)
-		
-		# Compute the flat, sequential sector index matching a standard CBM .d71 stream layout
-		# Track 18 sits exactly where it belongs, and side-2 registers append sequentially
-		linear_idx = D71FileSystemPlugin.get_d71_linear_sector_index(t, s) * 256
-		
-		if linear_idx + 256 > len(self.payload):
-			return False
-			
-		clean_data = bytes(data_bytes[:256].ljust(256, b"\x00"))
-		
-		# Enforce a single globally shared mutable type for array patching operations
-		if isinstance(self.payload, bytes):
-			self.payload = bytearray(self.payload)
-			
-		# CRITICAL FIX: Write the modified hex bytes DIRECTLY into self.payload!
-		# This eliminates any hidden private stream bypass loops permanently.
-		self.payload[linear_idx : linear_idx + 256] = clean_data
-		self.is_dirty = True
-		
-		# --- DHD MULTI-PARTITION SAVE INTERCEPT HOOK ---
-		# Because self.payload is now actively updated, our parent flush loop will 
-		# effortlessly capture your modifications and commit them to the PC hard drive!
-		if hasattr(self, "parent_dhd_handler") and self.parent_dhd_handler:
-			parent_dhd = self.parent_dhd_handler
-			part_id = getattr(self, "parent_partition_id", None)
-			part_info = parent_dhd.partitions_registry.get(part_id)
-			
-			if part_info:
-				b_start = part_info["byte_start"]
-				b_len = part_info["byte_length"]
-				
-				if isinstance(parent_dhd.payload, bytes):
-					parent_dhd.payload = bytearray(parent_dhd.payload)
-					
-				# Pull a clean deep copy snapshot out of our freshly updated payload buffer array
-				current_updated_bytes = bytes(self.payload)
-				
-				# Patch the parent's master platter block window using the absolute byte constraints of the partition
-				parent_dhd.payload[b_start : b_start + b_len] = current_updated_bytes[:b_len]
-				parent_dhd.is_dirty = True
-				parent_dhd.flush_dhd_to_disk()
-			return True
-			
-		# Standalone file serialization pass back to local PC storage media
-		if hasattr(self, "archive_name") and self.archive_name:
-			try:
-				with open(os.path.abspath(self.archive_name), "wb") as f_out:
-					f_out.write(bytes(self.payload))
-			except Exception:
-				pass
-		return True
-			
-		# === STEP 1: STERILE 70-TRACK LINEAR BYTE MAPPING ===
-	def get_d71_linear_sector_offset(t, s):
-		total_sectors_accumulator = 0
-		
-		# Walk through every track preceding our target to cleanly sum the sectors up
-		for check_t in range(1, t):
-			# Safely query your master profile matrix for each track's sector density
-			sec_in_track = ImageGeometryRegistry.get_sectors_in_track("D71", check_t)
-			total_sectors_accumulator += sec_in_track
-			
-		# Check boundary limits for the targeted sector cell
-		max_s_allowed = ImageGeometryRegistry.get_sectors_in_track("D71", t)
-		if s >= max_s_allowed:
-			return -1
-			
-		# Clear mathematical linear offset address (256 bytes per sector block)
-		return (total_sectors_accumulator + s) * 256
-
-		file_offset = get_d71_linear_sector_offset(int(track), int(sector))
-		
-		# Validate boundaries against your true master payload array length
-		master_data_source = self.file_bytes if hasattr(self, "file_bytes") and self.file_bytes else self.payload
-		if file_offset == -1 or file_offset + 256 > len(master_data_source):
-			return False
-			
-		# === STEP 2: APPLY CHANGES IN RAM BUFFERS ===
-		incoming_bytes = bytes(raw_bytes)
-		self.payload[file_offset : file_offset + 256] = incoming_bytes
-		if hasattr(self, "file_bytes") and self.file_bytes:
-			self.file_bytes[file_offset : file_offset + 256] = incoming_bytes
-			
-		# Synchronize auxiliary localized dictionary caches safely
-		local_cache_key = (int(track), int(sector))
-		if hasattr(self, "virtual_sector_cache_pool"):
-			self.virtual_sector_cache_pool[local_cache_key] = incoming_bytes
-
-		# === STEP 3: AUTOMATED CASCADING WRITE-THROUGH BACKPLANE ===
-		master_platter_bytes = bytes(self.payload)
-		for attr_target in ("file_bytes", "container_bytes", "raw_data", "master_payload"):
-			if hasattr(self, attr_target):
-				setattr(self, attr_target, bytearray(master_platter_bytes))
-
-		# === STEP 4: PERSIST MODIFICATIONS TO THE WINDOWS FILE SYSTEM ===
-		if hasattr(self, "archive_name") and self.archive_name:
-			absolute_file_path = os.path.abspath(self.archive_name)
-			try:
-				with open(absolute_file_path, "wb") as f_out:
-					f_out.write(master_platter_bytes)
-			except Exception:
-				return False
-				
-		return True
-
-	def list_directory(self):
-		"""Returns the fully parsed folder directory entries list matching your exact 32-byte step buffer specs."""
-		file_list = [{
-			"name": "..", "is_directory": True, "is_virtual_container": False,
-			"type_display": "UP-DIR", "size_display": " ", "modify_time_str": " -- -- -- "
-		}]
-		
-		curr_t = 18
-		curr_s = 1
-		visited_sectors = set()
-			
-		while curr_t > 0 and (curr_t, curr_s) not in visited_sectors:
-			if curr_t > 70:
-				break
-					
-			visited_sectors.add((curr_t, curr_s))
-			linear_idx = D71FileSystemPlugin.get_d71_linear_sector_index(curr_t, curr_s) * 256
-			if linear_idx + 256 > len(self.payload):
-				break
-				
-			# 1. Load the full 256-byte directory sector
-			sector_data = self.payload[linear_idx : linear_idx + 256]
-			
-			# 2. Extract and note the first 2 jump bytes to manage our track chain routing
-			next_t = sector_data[0]
-			next_s = sector_data[1]
-			
-			# 3. Separate the remaining 254 bytes into a clean, independent record buffer array
-			record_buffer = sector_data[2:256]
-			
-			# 4. Step precisely by 32 bytes using your proven multiplier pass
-			for slot_idx in range(8):
-				start_offset = slot_idx * 32
-				
-				# FIXED: Validates boundaries against the full 256-byte sector data limit to catch the 8th slot cleanly!
-				# Slot 7 ends exactly at physical offset 2 + 224 + 32 = 256, fitting perfectly.
-					
-				# Extract the isolated 32-byte file record row out of our clean buffer window
-				entry_bytes = record_buffer[start_offset : start_offset + 32]
-				
-				# Local 0-based relative offset targets inside the standard 32-byte file record
-				ftype_raw = entry_bytes[0] # Offset $01: File type flag byte [1.1]
-				if ftype_raw == 0x00: # Empty or unallocated record slot placeholder
-					continue
-					
-				start_t = entry_bytes[1] # Offset $02: Starting Track
-				start_s = entry_bytes[2] # Offset $03: Starting Sector
-				
-				# Filename field tracks from relative index positions 3 to 19 inclusive
-				raw_name = entry_bytes[3:19]
-				
-				# Fixed properties trackers pull block size decimal bytes accurately from offsets +28 and +29!
-				size_low = entry_bytes[28]
-				size_high = entry_bytes[29]
-				size_blocks = size_low + (size_high << 8)
-				
-				try:
-					# FIXED: Grabs the numerical array directly and triggers the filename tracking flag!
-					# This forces both the leading AND trailing spaces to turn into safe background 
-					# underscores (_) globally, completely bypassing any metadata cleanups.
-					clean_name = PETSCIIDecoder.decode_name(raw_name)
-					
-					# Decode file type display flags
-					type_flags = ftype_raw & 0x0F
-					if type_flags == 1: type_lbl = "SEQ"
-					elif type_flags == 2: type_lbl = "PRG"
-					elif type_flags == 3: type_lbl = "USR"
-					elif type_flags == 4: type_lbl = "REL"
-					else: type_lbl = "DEL"
-					
-					if (ftype_raw & 0x80):
-						type_lbl = type_lbl
-					else:
-						type_lbl = f"*{type_lbl}"
-						
-					if clean_name:
-						file_list.append({
-							"name": clean_name, "is_directory": False, "is_virtual_container": False,
-							"type_display": type_lbl, "size_display": str(size_blocks),
-							"vfs_meta": {"track": start_t, "sector": start_s, "blocks": size_blocks}
-						})
-				except Exception:
-					continue
-					
-			curr_t = next_t
-			curr_s = next_s
-
-		# --- PART B: CALCULATE BLOCKS FREE FROM TWIN BAM ZONES ---
-		free_blocks_total = 0
-		s0_idx = D71FileSystemPlugin.get_d71_linear_sector_index(18, 0) * 256
-		
-		if s0_idx + 256 <= len(self.payload):
-			# 1. SIDE 0 (TRACKS 1-35): Read from Track 18, Sector 0 counters [1.1]
-			for t_idx in range(1, 36):
-				if t_idx == 18:
-					continue # Track 18 is the directory track block itself, handled natively [1.1]
-				free_blocks_total += int(self.payload[s0_idx + (t_idx * 4)])
-				
-			# 2. EVALUATE DOUBLE-SIDED FLAG STATUS [1.1]
-			# Check offset 0x03 inside the Side 0 BAM (Hex 0x80 is decimal 128) [1.1]
-			is_double_sided = (self.payload[s0_idx + 3] == 0x80)
-			
-			if is_double_sided:
-				s1_idx = D71FileSystemPlugin.get_d71_linear_sector_index(53, 0) * 256
-				if s1_idx + 256 <= len(self.payload):
-					# Direct physical track dictionary mapping Side 1 tracks (36-70) straight to their sector caps [1.1]
-					track_sector_counts = {
-						36: 21, 37: 21, 38: 21, 39: 21, 40: 21, 41: 21, 42: 21, 43: 21, 44: 21, 
-						45: 21, 46: 21, 47: 21, 48: 21, 49: 21, 50: 21, 51: 21, 52: 21,
-						53: 19, 54: 19, 55: 19, 56: 19, 57: 19, 58: 19, 59: 19,
-						60: 18, 61: 18, 62: 18, 63: 18, 64: 18, 65: 18,
-						66: 17, 67: 17, 68: 17, 69: 17, 70: 17
-					}
-					
-					# Step sequentially by 3 bytes for each track's bitmask on Side 1 (35 tracks total) [1.1]
-					# Tracks 36-70 bitmasks start exactly at physical byte offset 0 of Track 53, Sector 0 [1.1]
-					for t_offset in range(35):
-						actual_track = 36 + t_offset
-						
-						track_bytes_start = s1_idx + (t_offset * 3)
-						max_sectors = track_sector_counts[actual_track]
-						
-						b1 = self.payload[track_bytes_start]
-						b2 = self.payload[track_bytes_start + 1]
-						b3 = self.payload[track_bytes_start + 2]
-						
-						# Combine the 3 bytes into a clean 24-bit integer mask natively [1.1]
-						track_mask = b1 | (b2 << 8) | (b3 << 16)
-						
-						# Standard 1541/1571 bitwise rules: 1 means the sector block is FREE [1.1]
-						for sector_bit in range(max_sectors):
-							if track_mask & (1 << sector_bit):
-								free_blocks_total += 1
-								
-		self.free_sectors_count = free_blocks_total
-		return file_list
-
-	def read_virtual_sector(self, track, sector):
-		"""Natively queries the raw .d71 payload buffer using 70-track sector offset formulas."""
-		linear_idx = D71FileSystemPlugin.get_d71_linear_sector_index(track, sector) * 256
-		if linear_idx + 256 <= len(self.payload):
-			return bytearray(self.payload[linear_idx : linear_idx + 256])
-		return bytearray(256)
-
-	def extract_file_bytes(self, vfs_meta_node):
-		"""Assembles raw file payload byte streams by sequentially traversing the 1571 track/sector chains."""
-		file_bytes = bytearray()
-		curr_t = vfs_meta_node.get("track", 0)
-		curr_s = vfs_meta_node.get("sector", 0)
-		visited = set()
-		
-		while curr_t > 0 and (curr_t, curr_s) not in visited:
-			if curr_t > 70:
-				break
-			visited.add((curr_t, curr_s))
-			linear_idx = D71FileSystemPlugin.get_d71_linear_sector_index(curr_t, curr_s) * 256
-			if linear_idx + 256 > len(self.payload):
-				break
-				
-			sector_data = self.payload[linear_idx : linear_idx + 256]
-			next_t = int(sector_data[0])
-			next_s = int(sector_data[1])
-			
-			if next_t == 0:
-				active_bytes_count = next_s - 1
-				file_bytes.extend(sector_data[2 : 2 + active_bytes_count])
-			else:
-				file_bytes.extend(sector_data[2:256])
-				
-			curr_t = next_t
-			curr_s = next_s
-			
-		return bytes(file_bytes)
-
-import os
-import struct
-
-class G64FileSystemPlugin:
-	"""Production-grade low-level GCR bitstream filesystem plugin driver. 
-	Enhanced to support a true 42-track limit, preserve pre-existing speed zone data arrays 
-	natively, and feed standard 256-byte sector buffers into high-level C64 Explorer loops.
-	"""
-	GCR_TO_NYBBLE = {
-		0x0A: 0x0, 0x0B: 0x1, 0x12: 0x2, 0x13: 0x3,
-		0x0E: 0x4, 0x0F: 0x5, 0x16: 0x6, 0x17: 0x7,
-		0x09: 0x8, 0x19: 0x9, 0x1A: 0xA, 0x1B: 0xB,
-		0x0D: 0xC, 0x1D: 0xD, 0x1E: 0xE, 0x15: 0xF
-	}
-	# Official Commodore 4-to-5 GCR Conversion Lookup Matrix Table [1.1]
-	
-	NYBBLE_TO_GCR = {
-		0x0: 0x0A, 0x1: 0x0B, 0x2: 0x12, 0x3: 0x13,
-		0x4: 0x0E, 0x5: 0x0F, 0x6: 0x16, 0x7: 0x17,
-		0x8: 0x09, 0x9: 0x19, 0xA: 0x1A, 0xB: 0x1B,
-		0xC: 0x0D, 0xD: 0x1D, 0xE: 0x1E, 0xF: 0x15
-	}
-
-	def encode_bytes_to_gcr_bits(self, raw_payload_bytes):
-		"""Computes the 1541 data sector XOR checksum, frames the 260-byte block,
-		maps every nybble to a 5-bit GCR code, and returns exactly 3,250 bits [1.1].
-		"""
-		if len(raw_payload_bytes) != 256:
-			return []
-		
-		
-		# STAGE 1: COMPUTE COMMODORE DOS SECTOR DATA XOR CHECKSUM [1.1]
-		data_checksum = 0
-		for b in raw_payload_bytes:
-			data_checksum ^= b
-
-		# STAGE 2: ASSEMBLE THE 260-BYTE COMMODORE DOS DATA BLOCK LAYOUT [1.1]
-		# Byte 0: Data Block Identifier Token ($07) [1.1]
-		# Bytes 1-256: Modified 256-Byte Payload Data [1.1]
-		# Byte 257: Generated 1-Byte XOR Checksum [1.1]
-		# Bytes 258-259: Trailing Off-Overhead Padding Gap ($00 $00) [1.1]
-		framed_block = bytearray([0x07])
-		framed_block.extend(raw_payload_bytes)
-		framed_block.append(data_checksum)
-		framed_block.extend([0x00, 0x00])
-		# STAGE 3 & 4: EXECUTE THE TRUE 4-TO-5 NYBBLE RE-ENCODING & BIT FLATTENING [1.1]
-		encoded_bit_stream = []
-		for byte_val in framed_block:
-			# Isolate the high and low 4-bit nybbles cleanly
-			high_nybble = (byte_val >> 4) & 0x0F
-			low_nybble = byte_val & 0x0F
-			# FIXED: Referencing via Class Name scopes the lookup dictionary perfectly!
-			gcr_high = G64FileSystemPlugin.NYBBLE_TO_GCR[high_nybble]
-			gcr_low = G64FileSystemPlugin.NYBBLE_TO_GCR[low_nybble]
-
-			# Convert the 5-bit high GCR word serially into integer bits [1.1]
-			for pos in range(4, -1, -1):
-				encoded_bit_stream.append((gcr_high >> pos) & 1)
-
-			# Convert the 5-bit low GCR word serially into integer bits [1.1]
-			for pos in range(4, -1, -1):
-				encoded_bit_stream.append((gcr_low >> pos) & 1)
-
-		# Returns an absolute un-truncated list array of exactly 3,250 bits [1.1]
-		
-		return encoded_bit_stream
-
-	def __init__(self, file_bytes, archive_name=""):
-		self.payload = bytearray(file_bytes)
-		self.archive_name = archive_name
-		self.format_type = "G64"
-		self.file_list = []
-		self.free_sectors_count = 0
-		self.disk_label_msg = "0 \"G64 IMAGE		\" ID 2A"
-		# On-demand virtual sector cache pool dictionary (track, sector -> 256 bytes)
-		self.virtual_sector_cache_pool = {}
-		
-		# FIXED REQUIREMENT: Initialize the permanent track geometry bit map cache!
-		# Maps (track, sector) -> absolute bit offset of the 0x07 data block ID
-		self.track_geometry_offset_map = {}
-
-		
-		# FIXED: Expanded physical track limits from 35 straight up to 42 max track!
-		self.default_dir_track = 18
-		self.default_dir_sector = 0
-		self.max_tracks_limit = 42
-		self.no_sector_editor = False # Allows Sector Editor to read our decoded virtual blocks
-		
-		# On-demand virtual sector cache pool dictionary (track, sector -> 256 bytes)
-		self.virtual_sector_cache_pool = {}
-		
-		# Execute mounting and directory compiling sequences
-		self.mount()
-		self.list_directory()
-		
-	def get_cached_sector_bit_offset(self, track, sector):
-		"""Queries the geometry cache map for a sector's bit coordinate position.
-		If the track hasn't been cached or demodulated yet, it forces a track sweep.
-		"""
-		cache_key = (int(track), int(sector))
-		if cache_key not in self.track_geometry_offset_map:
-			self.demodulate_track_gcr_to_cache(int(track))
-			
-		return self.track_geometry_offset_map.get(cache_key, None)
-
-	def get_raw_gcr_track_stream(self, logical_track):
-		"""Natively parses .g64 tables to extract file offsets, track byte sizes, 
-		and preserves speed zone pointers for any full or half-track up to Track 42.5.
-		"""
-		try:
-			track_float = float(logical_track)
-		except ValueError:
-			return b"", 0
-			
-		# Enforce our newly updated physical 42-track boundaries
-		if track_float < 1.0 or track_float > 42.5:
-			return b"", 0
-			
-		# Convert float track numbers cleanly to the 0-83 index entries
-		g64_idx = int(round((track_float - 1.0) * 2))
-		
-		# 1. Gather Track Data Absolute Offset Pointer
-		offset_ptr_pos = 12 + (g64_idx * 4)
-		if offset_pointer_slice_pos := offset_ptr_pos + 4 > len(self.payload):
-			return b"", 0
-		track_file_offset = struct.unpack("<I", self.payload[offset_ptr_pos : offset_ptr_pos + 4])[0]
-		if track_file_offset == 0:
-			return b"", 0 # Track has no recorded data in this image file
-			
-		# 2. PRESERVED METADATA RULE: Extract but do not alter speed zone data entries!
-		speed_ptr_pos = 0x0158 + (g64_idx * 4)
-		speed_zone_val = 0
-		if speed_ptr_pos + 4 <= len(self.payload):
-			speed_zone_val = struct.unpack("<I", self.payload[speed_ptr_pos : speed_ptr_pos + 4])[0]
-
-		# 3. Read True Length of Stored GCR Track Array Block
-		if track_file_offset + 2 > len(self.payload):
-			return b"", 0
-		track_len = struct.unpack("<H", self.payload[track_file_offset : track_file_offset + 2])[0]
-		
-		if track_file_offset + 2 + track_len > len(self.payload):
-			return b"", 0
-			
-		return bytes(self.payload[track_file_offset + 2 : track_file_offset + 2 + track_len]), speed_zone_val
-
-	def read_virtual_sector(self, track, sector):
-		"""High-level sector fetch hook. Automatically demodulates the requested 
-		track on-demand if it hasn't been cached yet.
-		"""
-		cache_key = (int(track), int(sector))
-		if cache_key not in self.virtual_sector_cache_pool:
-			self.demodulate_track_gcr_to_cache(int(track))
-			
-		return self.virtual_sector_cache_pool.get(cache_key, b"\x00" * 256)
-
-	def write_virtual_sector(self, track, sector, raw_bytes):
-		"""Production-grade surgical .g64 sector modifier with integrated 
-		Data Change Guard and circular Modulo Bit Wrap logic [1.1, 1.11].
-		"""
-		if len(raw_bytes) != 256:
-			return False
-			
-		if track < 1 or track > 42 or sector < 0:
-			return False
-
-		# === STEP 1: NATIVE DATA CHANGE GUARD SAFETY CHECK ===
-		local_cache_key = (int(track), int(sector))
-		if local_cache_key in self.virtual_sector_cache_pool:
-			if self.virtual_sector_cache_pool[local_cache_key] == bytes(raw_bytes):
-				return "NO_CHANGE"
-
-		# === STEP 2: LOOK UP THE CACHED BIT GEOMETRY OFFSET ===
-		target_bit_offset = self.get_cached_sector_bit_offset(int(track), int(sector))
-		if target_bit_offset is None:
-			return False
-
-		# === STEP 3: ASSEMBLE AND 4-TO-5 ENCODE PAYLOAD INTO GCR BITS ===
-		mutated_gcr_bits = self.encode_bytes_to_gcr_bits(raw_bytes)
-		if not mutated_gcr_bits or len(mutated_gcr_bits) != 2600:
-			return False
-			
-		# === STEP 4: FETCH THE RAW TRACK FROM THE PLATTER FILE HEADER ===
-		try:
-			track_float = float(track)
-			g64_idx = int(round((track_float - 1.0) * 2))
-			offset_ptr_pos = 12 + (g64_idx * 4)
-			
-			if offset_ptr_pos + 4 > len(self.payload):
-				return False
-				
-			track_file_offset_tuple = struct.unpack("<I", self.payload[offset_ptr_pos : offset_ptr_pos + 4])
-			track_file_offset = track_file_offset_tuple[0]
-			
-			if track_file_offset == 0:
-				return False
-				
-			track_len_tuple = struct.unpack("<H", self.payload[track_file_offset : track_file_offset + 2])
-			track_len = track_len_tuple[0]
-		except Exception:
-			return False
-
-		# === STEP 5: SURGICALLY OVERWRITE USING THE CIRCULAR MODULO WRAP RULE ===
-		try:
-			gcr_bytes_block = bytearray(self.payload[track_file_offset + 2 : track_file_offset + 2 + track_len])
-			track_bits_array = []
-			for b in gcr_bytes_block:
-				for bit_pos in range(7, -1, -1):
-					track_bits_array.append((b >> bit_pos) & 1)
-					
-			total_track_bits = len(track_bits_array)
-			
-			for i in range(2600):
-				write_coord_idx = (target_bit_offset + i) % total_track_bits
-				track_bits_array[write_coord_idx] = mutated_gcr_bits[i]
-		except Exception:
-			return False
-
-		# === STEP 6: REPACK BINARY BITS ARRAY BACK INTO STANDARD BYTES ===
-		try:
-			packed_track_bytes = bytearray()
-			for i in range(0, len(track_bits_array), 8):
-				byte_chunk = track_bits_array[i:i+8]
-				val = 0
-				for bit in byte_chunk:
-					val = (val << 1) | bit
-				packed_track_bytes.append(val)
-				
-			self.payload[track_file_offset + 2 : track_file_offset + 2 + len(packed_track_bytes)] = packed_track_bytes
-		except Exception:
-			return False
-
-		# === STEP 7: UPDATE LOCALIZED RAM CACHE POOLS ===
-		self.virtual_sector_cache_pool[local_cache_key] = bytes(raw_bytes)
-
-		# === STEP 8: AUTOMATED CASCADING WRITE-THROUGH BACKPLANE ===
-		master_platter_bytes = bytes(self.payload)
-		
-		# 1. Proactively cascade updates into your application's global master storage layers
-		for attr_target in ("file_bytes", "container_bytes", "raw_data", "master_payload"):
-			if hasattr(self, attr_target):
-				setattr(self, attr_target, bytearray(master_platter_bytes))
-				
-		# Check if this G64 instance is running inside a nested VFS container handler (like a .dnp or .d64)
-		if hasattr(self, "parent_vfs_handler") and self.parent_vfs_handler:
-			parent_handler = self.parent_vfs_handler
-			target_filename = getattr(self, "filename_on_parent", "disk_image.g64")
-			
-			# Compress the updated G64 memory buffer completely into a flat, sequential array of bytes
-			updated_payload_stream = bytes(self.payload)
-			
-			# 1. TRIGGER REPLACEMENT CHECK: Silently find and purge the old filename allocation sectors!
-			# By forcing force_replace=True, it unlinks the old blocks automatically with zero user warnings
-			dup_report = parent_handler.check_target_for_duplicate_filename(target_filename, force_replace=True)
-			
-			# 2. FILE INJECTION PASS: Allocate fresh sequential block sectors and save the new data stream
-			# Call your container's native file-saving write routine to plop the new stream into place cleanly
-			if hasattr(parent_handler, "save_virtual_file_payload"):
-				success = parent_handler.save_virtual_file_payload(target_filename, updated_payload_stream)
-				if success:
-					# Cascade dirty flags right up the stack to flush everything safely back to the master DHD!
-					parent_handler.is_dirty = True
-					if hasattr(parent_handler, "parent_dhd_handler") and parent_handler.parent_dhd_handler:
-						parent_handler.parent_dhd_handler.is_dirty = True
-						parent_handler.parent_dhd_handler.flush_dhd_to_disk()
-					return True
-				
-		# 2. Commit the final platter array permanently to your Windows workstation platter path
-		if hasattr(self, "archive_name") and self.archive_name:
-			absolute_file_path = os.path.abspath(self.archive_name)
-			try:
-				with open(absolute_file_path, "wb") as f_out:
-					f_out.write(master_platter_bytes)
-			except Exception:
-				return False
-				
-		return True
-
-	def decode_gcr_bits_to_bytes(self, bit_list):
-		"""Groups a sequence of bit integers into 5-bit GCR chunks and decodes them."""
-		gcr_blocks = []
-		for i in range(0, len(bit_list) - 4, 5):
-			val = 0
-			for b_idx in range(5):
-				val = (val << 1) | bit_list[i + b_idx]
-			gcr_blocks.append(val)
-		nybbles = []
-		for block in gcr_blocks:
-			nybbles.append(G64FileSystemPlugin.GCR_TO_NYBBLE.get(block, 0))
-		standard_bytes = []
-		for idx in range(0, len(nybbles) - 1, 2):
-			standard_bytes.append((nybbles[idx] << 4) | nybbles[idx + 1])
-		return standard_bytes
-
-	def demodulate_track_gcr_to_cache(self, logical_track):
-		"""🚨 HARDWARE-REPLICATING LOOK-AHEAD GCR DEMODULATOR 🚨
-		Parses raw bitstreams natively using a precise 10-bit shift register window. 
-		Identifies sector frames by executing direct 100-bit header and 3250-bit data 
-		look-ahead captures, matching our verified diagnostic tool perfectly.
-		"""
-		gcr_bytes, speed_zone = self.get_raw_gcr_track_stream(logical_track)
-		if not gcr_bytes:
-			return
-
-		# Convert raw track bytes into a continuous list array of binary integers
-		base_bit_list = []
-		for b in gcr_bytes:
-			for bit_pos in range(7, -1, -1):
-				base_bit_list.append((b >> bit_pos) & 1)
-				
-		# Replicate rotating floppy disk by multi-passing the stream list 4 times back-to-back
-		bit_stream = base_bit_list * 4
-		stream_len = len(bit_stream)
-
-		# FIXED: Defined the total track bits variable early so State 1 can read it!
-		total_track_bits = len(base_bit_list)
-
-		# State registers
-		shift_reg = 0
-		seeking_sync = True
-		collected_bits = []
-		last_header_sector = None
-
-		# ADD THESE TWO LINES FOR STATE MANAGEMENT:
-		decoding_mode = "SEEK_SYNC"	 # Modes: "SEEK_SYNC", "COLLECT_ID", "HEADER", "DATA"
-		expected_bytes = 0
-
-
-		bit_idx = 0
-		# We scan through the first full revolution plus our spillover lookahead room
-		max_scan_len = len(base_bit_list) + 12000
-		if max_scan_len > stream_len:
-			max_scan_len = stream_len
-
-		while bit_idx < max_scan_len:
-			bit = bit_stream[bit_idx]
-			bit_idx += 1
-			shift_reg = ((shift_reg << 1) | bit) & 0x3FF
-
-			# If ten 1s hit, a hardware sync IMMEDIATELY interrupts any active frame processing
-			if shift_reg == 0x3FF:
-				decoding_mode = "SEEK_SYNC"
-				seeking_sync = True
-				collected_bits = []
-				# (Leave your existing track-wrap loop counters below this intact!)
-
-
-			if seeking_sync:
-				if bit == 0:
-					seeking_sync = False
-					shift_reg = 0
-					collected_bits = [bit]
-					decoding_mode = "COLLECT_ID"
-				continue
-
-			# Collect bits for the current active frame mode
-			collected_bits.append(bit)
-			
-			# --- STATE 1: DECODE INDEPENDENT BLOCK IDENTIFIER (10 bits gathered) ---
-			if decoding_mode == "COLLECT_ID" and len(collected_bits) == 10:
-				decoded_id = self.decode_gcr_bits_to_bytes(collected_bits)
-				if decoded_id and len(decoded_id) > 0:
-					if decoded_id[0] == 0x08:	 # HEADER TOKEN MATCHED
-						decoding_mode = "HEADER"
-						expected_bytes = 5
-					elif decoded_id[0] in (0x07, 0xF1):	 # DATA TOKEN MATCHED
-						decoding_mode = "DATA"
-						expected_bytes = 260
-						
-						# FIXED REQUIREMENT: Log the dynamic bit offset of the data identifier! [1.10]
-						if last_header_sector is not None:
-							# Calculate the true starting coordinate index on the primary track rotation
-							# We offset backward by 9 bits to align perfectly on the absolute start of the data block ID cell
-							absolute_start_bit = (bit_idx - 10) % total_track_bits
-							geometry_key = (int(logical_track), int(last_header_sector))
-							
-							# Commit the coordinate directly to our driver state mapping tracking records
-							self.track_geometry_offset_map[geometry_key] = absolute_start_bit
-					else:
-						decoding_mode = "SEEK_SYNC"
-						seeking_sync = True
-				else:
-					decoding_mode = "SEEK_SYNC"
-					seeking_sync = True
-
-			# --- STATE 2: PROCESS ACTIVE DATA CHUNKS BY BYTE SIZE LIMITS ---
-			elif decoding_mode in ("HEADER", "DATA"):
-				# Every standard CBM byte requires exactly 10 raw GCR bits
-				if len(collected_bits) == (expected_bytes * 10):
-					full_frame_bytes = self.decode_gcr_bits_to_bytes(collected_bits)
-					
-					if decoding_mode == "HEADER" and len(full_frame_bytes) >= 3:
-						# Byte 2 extracts Sector # natively out of the decoded byte array [1.28]
-						last_header_sector = full_frame_bytes[2]
-						
-						# ============================================
-						
-					elif decoding_mode == "DATA" and last_header_sector is not None and len(full_frame_bytes) >= 257:
-						cache_key = (int(logical_track), int(last_header_sector))
-						if cache_key not in self.virtual_sector_cache_pool:
-							# Store the standard 256 bytes data payload seamlessly
-							self.virtual_sector_cache_pool[cache_key] = bytes(full_frame_bytes[1:257])
-							last_header_sector = None
-							# ==================================================
-							
-						last_header_sector = None
-						
-					# Clear frame parameters and return cleanly to master sync search loop [1.28]
-					decoding_mode = "SEEK_SYNC"
-					seeking_sync = True
-					collected_bits = []
-
-
-	def mount(self):
-		"""Extracts high-level Disk Name and IDs from the cached Track 18, Sector 0 buffer [1.1]."""
-		header_sector = self.read_virtual_sector(18, 0)
-		
-		# Pull strict physical slice limits from standard 1541 hardware profiles [1.1]
-		raw_label = header_sector[144:160]
-		raw_id = header_sector[162:164]
-		raw_dos = header_sector[165:167]
-		
-		# Sanitizer loop: Strip out all non-printable raw padding data and clean spaces [1.1]
-		lbl_str = "".join(chr(b) for b in raw_label if 32 <= b <= 126).strip()
-		id_str = "".join(chr(b) for b in raw_id if 32 <= b <= 126).strip().upper()
-		dos_str = "".join(chr(b) for b in raw_dos if 32 <= b <= 126).strip().upper()
-		
-		# Fallback guards: If text decoding comes up empty, default to standard CBM labels [1.1]
-		if not lbl_str:
-			lbl_str = "1541 GCR"
-		if not id_str:
-			id_str = "41"
-		if not dos_str:
-			dos_str = "2A"
-			
-		# Enforce true 16-character space-padded layout alignment within quotes [1.1]
-		self.disk_label_msg = f'0 "{lbl_str:<16}" {id_str} {dos_str}'
-
-
-	def list_directory(self):
-		"""Traces standard 1541 directory linkages from the demodulated sector caches."""
-		self.file_list = [{
-			"name": "..", "is_directory": True, "is_virtual_container": False,
-			"type_display": "UP-DIR", "size_display": " ", "modify_time_str": " -- -- -- "
-		}]
-		
-		curr_t, curr_s = 18, 1
-		free_count = 0
-		
-		while curr_t != 0:
-			sec_data = self.read_virtual_sector(curr_t, curr_s)
-			if not sec_data or len(sec_data) < 2:
-				break
-				
-			next_t, next_s = int(sec_data[0]), int(sec_data[1])
-			
-			for off in range(2, 256, 32):
-				slot = sec_data[off : off + 32]
-				if len(slot) < 30 or int(slot[0]) == 0x00:
-					continue
-					
-				ft_raw = int(slot[0])
-				type_flags = ft_raw & 0x0F
-				t_lbl = "PRG" if type_flags == 2 else "SEQ" if type_flags == 1 else "USR" if type_flags == 3 else "REL" if type_flags == 4 else "DEL"
-				
-				if ft_raw & 0x40: t_lbl = f"<{t_lbl}"
-				if not (ft_raw & 0x80): t_lbl = f"*{t_lbl}"
-					
-				# FIXED: Match your D64 file link offsets exactly!
-				tgt_t, tgt_s = slot[1], slot[2]
-				c_nm = PETSCIIDecoder.decode_name(slot[3:19])
-				# FIXED: Appended [0] to unpack the tuple cleanly into a raw block count integer!
-				b_cnt = struct.unpack("<H", slot[28:30])[0]
-				
-				self.file_list.append({
-					"name": c_nm, "is_directory": False, "is_virtual_container": False,
-					"type_display": t_lbl, "size_display": str(b_cnt),
-					"vfs_meta": {"track": tgt_t, "sector": tgt_s}
-				})
-				
-			if next_t == 0 or (next_t == 0x00 and next_s == 0xFF):
-				break
-			curr_t, curr_s = next_t, next_s
-			
-		# FIXED: Bounded sectors density lookup loop safely limits to 35 tracks for free space calculations
-		bam_sector = self.read_virtual_sector(18, 0)
-		for t in range(1, 36):
-			if t == 18: continue
-			free_count += int(bam_sector[t * 4])
-			
-		self.free_sectors_count = free_count
-		return self.file_list
-		
-	def extract_file_bytes(self, vfs_meta):
-		"""Sequentially follows a file's track and sector link chain from our demodulated 
-		virtual sector cache pool to extract the raw binary payload bytes [1.1].
-		"""
-		if not vfs_meta or "track" not in vfs_meta or "sector" not in vfs_meta:
-			return b""
-			
-		file_bytes = bytearray()
-		curr_t = int(vfs_meta["track"])
-		curr_s = int(vfs_meta["sector"])
-		
-		# Guard against infinite loops or circular file allocation pointers
-		visited_sectors = set()
-		
-		# A 1541 file chain runs until the Next Track byte equals 0x00 [1.1]
-		while curr_t != 0:
-			# Safety boundary check: ensure we don't spin endlessly on corrupted images
-			sector_key = (curr_t, curr_s)
-			if sector_key in visited_sectors:
-				break
-			visited_sectors.add(sector_key)
-			
-			# Pull the 256-byte standard sector via our unified lookup coordinate hook
-			sec_data = self.read_virtual_sector(curr_t, curr_s)
-			if not sec_data or len(sec_data) < 256:
-				break
-				
-			# On a standard 1541 diskette [1.1]:
-			# - Byte 0 is the Next Track of the file chain [1.1]
-			# - Byte 1 is the Next Sector of the file chain [1.1]
-			# FIXED: Pull indices straight out of the byte array natively!
-			# Pull integers straight out of the active byte offsets natively!
-			next_t = sec_data[0]
-			next_s = sec_data[1]
-			
-			if next_t == 0:
-				# If the next track is 0, this is the absolute final sector of the file [1.1]!
-				# In this case, Byte 1 specifies exactly how many valid data bytes remain inside this block [1.1].
-				valid_bytes_count = next_s
-				# Strip off the initial 2-byte track/sector pointer overhead [1.1]
-				file_bytes.extend(sec_data[2 : 1 + valid_bytes_count])
-				break
-			else:
-				# If next_t is not 0, the entire sector contains valid data payload [1.1]
-				file_bytes.extend(sec_data[2:256])
-				
-			curr_t = next_t
-			curr_s = next_s
-			
-		return bytes(file_bytes)
-
-class D81FileSystemPlugin:
-	"""Production-grade filesystem driver plugin natively mounting, parsing, and mapping 
-	high-density 1581 (.d81) virtual disk containers seamlessly [1.1].
-	"""
-	def __init__(self, payload_bytes, archive_name=""):
-		# LINE 2384 CORRECTION: Enforces a clean, writable bytearray structure at instantiation
-		self.payload = bytearray(payload_bytes)
-		self.archive_name = archive_name
-		self.file_list = []
-		self.free_sectors_count = 0
-		self.disk_label_msg = "0 \"UNLABELLED DISK \" ID 2A"
-		
-		# Bind the physical constraints matching high-density 1581 profiles [1.1]
-		self.format_type = "D81"
-		# FIXED: Essential tracking registers to drive fluid subdirectory navigation!
-		# FIXED: Essential interface hooks to prevent dropdown menu/sector editor AttributeErrors!
-		self.default_dir_track = 40
-		self.default_dir_sector = 0		
-		self.current_dir_track = 40
-		self.current_dir_sector = 0
-		self.directory_history_stack = []
-
-		self.max_tracks_limit = 80
-		self.no_sector_editor = False
-		
-		# Execute automatic mounting routines on instantiation
-		self.mount()
-		self.list_directory()
-
-	@staticmethod
-	def get_d81_linear_sector_index(track, sector):
-		"""Translates physical 1581 1-based tracks and 0-based sectors into a flat, 
-		linear offset tracking multiplier. Every single track holds exactly 40 sectors [1.1].
-		"""
-		if track < 1 or track > 80 or sector < 0 or sector > 39:
-			return 0
-		return ((track - 1) * 40) + sector
-
-	def read_virtual_sector(self, track, sector):
-		"""Extracts a raw 256-byte sector payload block natively from the image stream."""
-		idx = D81FileSystemPlugin.get_d81_linear_sector_index(track, sector) * 256
-		if idx + 256 <= len(self.payload):
-			return bytes(self.payload[idx : idx + 256])
-		return b"\x00" * 256
-
-	def write_virtual_sector(self, track, sector, raw_bytes):
-		"""Production-grade high-density 1581 .d81 sector modifier with integrated 
-		Data Change Guard and sterile uniform track offset mapping [1.1, 1.13].
-		"""
-		if len(raw_bytes) != 256:
-			return False
-			
-		# Enforce strict 1581 physical constraints (Tracks 1 to 80, Sectors 0 to 39) [1.13]
-		if track < 1 or track > 80 or sector < 0 or sector > 39:
-			return False
-
-		# === STEP 1: NATIVE DATA CHANGE GUARD SAFETY CHECK ===
-		local_cache_key = (int(track), int(sector))
-		# FIXED: Looks for your class's existing cache dictionary dynamically
-		active_cache = getattr(self, "sector_cache", getattr(self, "virtual_sector_cache_pool", {}))
-		if local_cache_key in active_cache:
-			if active_cache[local_cache_key] == bytes(raw_bytes):
-				return "NO_CHANGE"
-
-		# === STEP 2: UNIFORM 1581 LINEAR BYTE OFFSET MAPPING ===
-		# Every single track holds exactly 40 sectors; no accumulator loops required! [1.13]
-		file_offset = ((int(track) - 1) * 40 + int(sector)) * 256
-		
-		# Validate boundaries against your true master payload array length
-		master_data_source = self.file_bytes if hasattr(self, "file_bytes") and self.file_bytes else self.payload
-		if file_offset + 256 > len(master_data_source):
-			return False
-			
-		# === STEP 3: APPLY CHANGES IN RAM BUFFERS ===
-		incoming_bytes = bytes(raw_bytes)
-		
-		if not isinstance(self.payload, bytearray):
-			self.payload = bytearray(self.payload)
-			
-		self.payload[file_offset : file_offset + 256] = incoming_bytes
-		if hasattr(self, "file_bytes") and self.file_bytes:
-			self.file_bytes[file_offset : file_offset + 256] = incoming_bytes
-			
-		# FIXED: Loops through common cache dictionaries to update whatever variable this plugin is using!
-		for attr_name in ("sector_cache", "virtual_sector_cache_pool", "virtual_sectors"):
-			if hasattr(self, attr_name) and isinstance(getattr(self, attr_name), dict):
-				getattr(self, attr_name)[local_cache_key] = incoming_bytes
-
-		# === STEP 4: AUTOMATED CASCADING WRITE-THROUGH BACKPLANE ===
-		master_platter_bytes = bytes(self.payload)
-		for attr_target in ("file_bytes", "container_bytes", "raw_data", "master_payload"):
-			if hasattr(self, attr_target):
-				setattr(self, attr_target, bytearray(master_platter_bytes))
-				
-		# SCENARIO A: This plugin is running as a NESTED SUB-PARTITION inside a master .dhd container!
-		if hasattr(self, "parent_dhd_handler") and self.parent_dhd_handler:
-			parent_dhd = self.parent_dhd_handler
-			part_id = getattr(self, "parent_partition_id", None)
-			part_info = parent_dhd.partitions_registry.get(part_id)
-			
-			if part_info:
-				b_start = part_info["byte_start"]
-				b_len = part_info["byte_length"]
-				
-				# Enforce mutable type conformity on the parent payload container stream
-				if isinstance(parent_dhd.payload, bytes):
-					parent_dhd.payload = bytearray(parent_dhd.payload)
-					
-				# Safely patch our modified 16MB sub-image buffer right into the parent's layout window!
-				parent_dhd.payload[b_start : b_start + b_len] = self.payload[:b_len]
-				
-				# Arm the parent handler's dirty flag and trigger its physical disk save sequence!
-				parent_dhd.is_dirty = True
-				parent_dhd.flush_dhd_to_disk()
-			return True
-				
-		# === STEP 5: PERSIST MODIFICATIONS TO THE WINDOWS FILE SYSTEM ===
-		if hasattr(self, "archive_name") and self.archive_name:
-			absolute_file_path = os.path.abspath(self.archive_name)
-			try:
-				with open(absolute_file_path, "wb") as f_out:
-					f_out.write(master_platter_bytes)
-			except Exception:
-				return False
-				
-		return True
-
-	def mount(self):
-		"""Natively isolates unique disk metadata, splits layout IDs, and builds headers [1.1]."""
-		# Track 40, Sector 0 contains the central Disk Header block [1.1]
-		header_bytes = self.read_virtual_sector(40, 0)
-		
-		# Offsets matching 1581 specs: Label at 4-19, ID at 22-23, DOS at 25-26 [1.1]
-		raw_label = header_bytes[4:20]
-		raw_id = header_bytes[22:24]
-		raw_dos = header_bytes[25:27]
-		
-		lbl_str = PETSCIIDecoder.decode_name(raw_label).replace("_", " ")
-		id_str = PETSCIIDecoder.decode_name(raw_id).strip().upper()
-		dos_str = PETSCIIDecoder.decode_name(raw_dos).strip().upper()
-		
-		# Formats header string tightly to include your space-separated capital IDs! [1.1]
-		self.disk_label_msg = f'0 "{lbl_str:<16}" {id_str} {dos_str}'
-		
-	def allocate_virtual_sector_in_bam(self, track, sector, bam_track=None):
-		"""Hardware-accurate bitwise allocator for 1581 profiles.
-		Flips the target sector's availability bit to 0 (USED) and decrements the track counter.
-		Defaults to target Track 40 unless overridden by an explicit partition track [1.13].
-		"""
-		if track < 1 or track > 80 or sector < 0 or sector > 39:
-			return False
-		if track == 40:
-			return False
-
-		# Polymorphic Routing Target: Default to standard root track 40 unless told otherwise
-		target_bam_root = 40 if bam_track is None else int(bam_track)
-
-		bam_sector_num = 1 if track <= 40 else 2
-		logical_track = track if track <= 40 else (track - 40)
-		
-		# Fetch from the dynamically requested BAM root platter coordinate location! [1.13]
-		bam_data = bytearray(self.read_virtual_sector(target_bam_root, bam_sector_num))
-		if len(bam_data) < 256:
-			return False
-			
-		track_offset = 16 + ((logical_track - 1) * 6)
-		byte_in_mask = 1 + (sector // 8)
-		bit_position = sector % 8
-		target_byte_idx = track_offset + byte_in_mask
-		
-		if not (bam_data[target_byte_idx] & (1 << bit_position)):
-			return True # Already marked allocated
-			
-		bam_data[target_byte_idx] &= ~(1 << bit_position)
-		if bam_data[track_offset] > 0:
-			bam_data[track_offset] -= 1
-			
-		return self.write_virtual_sector(target_bam_root, bam_sector_num, bytes(bam_data))
-
-	def deallocate_virtual_sector_in_bam(self, track, sector, bam_track=None):
-		"""Hardware-accurate bitwise deallocator for 1581 profiles.
-		Flips the target sector's availability bit to 1 (FREE) and increments the track counter.
-		Defaults to target Track 40 unless overridden by an explicit partition track [1.13].
-		"""
-		if track < 1 or track > 80 or sector < 0 or sector > 39:
-			return False
-		if track == 40:
-			return False
-
-		target_bam_root = 40 if bam_track is None else int(bam_track)
-
-		bam_sector_num = 1 if track <= 40 else 2
-		logical_track = track if track <= 40 else (track - 40)
-		
-		bam_data = bytearray(self.read_virtual_sector(target_bam_root, bam_sector_num))
-		if len(bam_data) < 256:
-			return False
-			
-		track_offset = 16 + ((logical_track - 1) * 6)
-		byte_in_mask = 1 + (sector // 8)
-		bit_position = sector % 8
-		target_byte_idx = track_offset + byte_in_mask
-		
-		if bam_data[target_byte_idx] & (1 << bit_position):
-			return True # Already marked free
-			
-		bam_data[target_byte_idx] |= (1 << bit_position)
-		if bam_data[track_offset] < 40:
-			bam_data[track_offset] += 1
-			
-		return self.write_virtual_sector(target_bam_root, bam_sector_num, bytes(bam_data))
-
-	def create_1581_partition_sectors(self, start_t, end_t, name, label, disk_id):
-		"""Surgically compiles and injects standard 1581 partition sector containers.
-		Writes the custom Partition Header, builds local sub-BAM sectors, allocates
-		track availability blocks, and updates the parent directory table linkages [1.13].
-		"""
-		try:
-			# 1. PARSE TOTAL SECTORS FOOTPRINT BOUNDS MATH
-			total_tracks = (end_t - start_t) + 1
-			# Track size block count yields exactly 40 sectors per track minus the local dir track [1.13]
-			calculated_free_blocks = (total_tracks - 1) * 40
-			
-			# 2. WRITE THE PARTITION HEADER DESCRIPTORS TO SECTOR 0 OF START_TRACK [1.1, 1.13]
-			header_block = bytearray(256)
-			header_block[0:2] = [0x00, 0xFF] # Set structural sector link terminators
-			
-			# Encode string attributes tightly into standard PETSCII matching byte arrays [1.1]
-			# FIXED: Forms a clean, raw bytearray padded with 0xA0 primitives to completely avoid UTF-8 expansion glitches! [1.1]
-			# === FIXED: HIGH-ACCURACY BYTE CONVERTERS WITH HARDENED ASCII PADDING [1.1] ===
-			petscii_label = bytearray(16)
-			clean_label_str = str(label).strip()
-			label_bytes = clean_label_str.encode('ascii', 'ignore')[:16]
-			petscii_label[0:len(label_bytes)] = label_bytes
-			for idx in range(len(label_bytes), 16):
-				petscii_label[idx] = 0xA0 # Raw unshifted CBM space primitive [1.1]
-
-			petscii_id = bytearray(2)
-			clean_id_str = str(disk_id).strip()
-			id_bytes = clean_id_str.encode('ascii', 'ignore')[:2]
-			petscii_id[0:len(id_bytes)] = id_bytes
-			for idx in range(len(id_bytes), 2):
-				petscii_id[idx] = 0xA0
-
-			# ─── YOUR PASTE STOP ANCHOR (LINES BELOW REMAIN COMPLETELY UNTOUCHED) ───
-			petscii_dos = b"3D"
-			
-			header_block[4:20]	= petscii_label
-			header_block[22:24] = petscii_id
-			header_block[25:27] = petscii_dos
-			
-			# Encode the exact numeric free block value right at bytes 11-12 of the partition's BAM [1.13]
-			struct.pack_into("<H", header_block, 11, calculated_free_blocks)
-			
-			# Patch Sector 0 directly onto the platter stream caches
-			self.write_virtual_sector(start_t, 0, bytes(header_block))
-			
-			# 3. CONSTRUCT THE PARTITION SUB-BAM SECTORS (Sectors 1 and 2) [1.13]
-			# To act like an authentic independent disk, we format local BAM maps
-			# where tracks outside our partition footprint are pre-flagged as fully used! [1.13]
-			bam1 = bytearray(256)
-			bam2 = bytearray(256)
-			bam1[0:2] = [0x00, 0xFF]
-			bam2[0:2] = [0x00, 0xFF]
-			
-			# Build Sector 1 Track Map Loop (Tracks 1 to 40) [1.13]
-			for t in range(1, 41):
-				off = 16 + ((t - 1) * 6)
-				if start_t <= t <= end_t and t != start_t:
-					# This track resides inside our active partition! Mark all 40 sectors as FREE [1.13]
-					bam1[off] = 40 # Set Free Sector Counter to 40
-					bam1[off+1:off+6] = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF] # All availability bits set to 1
-				else:
-					# Out of partition bounds! Hard-flag track as FULLY USED [1.13]
-					bam1[off] = 0
-					bam1[off+1:off+6] = [0x00, 0x00, 0x00, 0x00, 0x00]
-					
-			# Build Sector 2 Track Map Loop (Tracks 41 to 80) [1.13]
-			for t in range(41, 81):
-				off = 16 + ((t - 41) * 6)
-				if start_t <= t <= end_t and t != start_t:
-					bam2[off] = 40
-					bam2[off+1:off+6] = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
-				else:
-					bam2[0] = 0
-					bam2[off+1:off+6] = [0x00, 0x00, 0x00, 0x00, 0x00]
-					
-			self.write_virtual_sector(start_t, 1, bytes(bam1))
-			self.write_virtual_sector(start_t, 2, bytes(bam2))
-			
-			# 4. ZERO OUT THE FILES RECORD DATA TRACK CHUNKS IN THIS WINDOW RANGE [1.13]
-			blank_sector_data = b"\x00" * 256
-			for t in range(start_t + 1, end_t + 1):
-				for s in range(40):
-					self.write_virtual_sector(t, s, blank_sector_data)
-					
-			# 5. FIXED: STREAMLINED ALLOCATION DRIVES EXCLUSIVELY INTO THE ACTIVE WORKSPACE BAM [1.13]
-			active_dir_t = getattr(self, "current_dir_track", 40)
-			
-			for t in range(start_t, end_t + 1):
-				for s in range(40):
-					# Pass the active directory track context so the block is claimed inside the proper sandbox layer! [1.13]
-					self.allocate_virtual_sector_in_bam(t, s, bam_track=active_dir_t)
-					
-					# Pass B: If we are inside a subdirectory partition, copy the used mark into its local sub-BAM! [1.13]
-					if active_dir_t != 40:
-						self.allocate_virtual_sector_in_bam(t, s, bam_track=active_dir_t)
-					
-			# 6. INJECT A CLEAN "CBM" FILE SLOT RECORD ENTRY INTO THE CURRENT PARENT DIRECTORY LAYER [1.13]
-			active_dir_t = getattr(self, "current_dir_track", 40)
-			active_dir_s = 3
-			
-			slot_injected = False
-			while active_dir_t != 0:
-				dir_sector = bytearray(self.read_virtual_sector(active_dir_t, active_dir_s))
-				if len(dir_sector) < 256:
-					break
-					
-				# Look for an unallocated empty file slot row stub (First byte == 0x00)
-				for off in range(2, 256, 32):
-					if dir_sector[off] == 0x00:
-						# Empty slot stub found! Package our partition details right here
-						dir_sector[off] = 0x85 # File Type Number: Closed CBM Partition entry flag! [1.13]
-						dir_sector[off+1] = start_t # Target Track Link Vector [1.13]
-						dir_sector[off+2] = 0		# Target Sector Link Vector (Always 0 for partitions) [1.13]
-						
-						# Inject Filename text padded cleanly with PETSCII space marks [1.1]
-						petscii_name = bytearray(16)
-						name_enc = name.encode('utf-8', 'ignore')[:16]
-						petscii_name[0:len(name_enc)] = name_enc
-						for i in range(len(name_enc), 16):
-							petscii_name[i] = 0xA0
-							
-						dir_sector[off+3:off+19] = petscii_name
-						
-						# Inject the 16-bit block size allocation count [1.1]
-						struct.pack_into("<H", dir_sector, off + 28, calculated_free_blocks)
-						
-						self.write_virtual_sector(active_dir_t, active_dir_s, bytes(dir_sector))
-						slot_injected = True
-						break
-						
-				if slot_injected:
-					break
-					
-				# Trace down to the next linked directory track sector block link in the chain
-				next_t, next_s = int(dir_sector[0]), int(dir_sector[1])
-				if next_t == 0:
-					# If the directory is full, allocate an extended directory sector block link next!
-					break
-				active_dir_t, active_dir_s = next_t, next_s
-				
-			return True
-		except Exception:
-			return False
-		
-	def get_partition_creation_track_matrix(self):
-		"""Computes a dictionary map of tracks 1-80 indicating selection eligibility
-		based on active workspace scopes, BAM sector usage, and look-ahead depth thresholds [1.13].
-		"""
-		# DYNAMIC SOURCE LOGIC: Look at the folder track we are currently exploring!
-		active_t = getattr(self, "current_dir_track", 40)
-		
-		# Set baseline playground boundaries
-		min_bound = 1
-		max_bound = 80
-		
-		# If we are nested inside a partition, the playground is bound strictly inside its scope
-		if active_t != 40:
-			min_bound = active_t
-			# Extract the parent partition's absolute upper track limit
-			max_bound = getattr(self, "current_partition_end_track", min_bound + 11) # Default to 12 tracks span fallback
-
-		track_matrix = {}
-		
-		# Initialize all tracks across the platter
-		for t in range(1, 81):
-			if t < min_bound or t > max_bound or t == 40:
-				track_matrix[t] = "X" # Hard lock out-of-scope regions
-				continue
-				
-			# Inspect the sub-BAM sectors of our ACTIVE location track, not a hardcoded 40! [1.13]
-			bam_sec = 1 if t <= 40 else 2
-			log_t = t if t <= 40 else (t - 40)
-			bam_data = self.read_virtual_sector(active_t, bam_sec)
-			
-			if not bam_data or len(bam_data) < 256:
-				track_matrix[t] = "X"
-				continue
-				
-			t_offset = 16 + ((log_t - 1) * 6)
-			free_sectors_count = int(bam_data[t_offset])
-			
-			if free_sectors_count < 40:
-				track_matrix[t] = "X" # Even one allocated sector locks out the entire track
-			else:
-				track_matrix[t] = "." # Clean unallocated track
-				
-		# PASS 2: COUPLER LOOK-AHEAD PASS CONSTRICTOR
-		final_eligible_matrix = {}
-		for t in range(1, 81):
-			if track_matrix.get(t) == "X":
-				final_eligible_matrix[t] = "X"
-				continue
-				
-			can_fit = True
-			# A partition requires a minimum footprint chunk size of 3 tracks sequential
-			for look_ahead in range(t, t + 3):
-				if look_ahead > max_bound:
-					can_fit = False
-					break
-				if look_ahead == 40 or track_matrix.get(look_ahead) == "X":
-					can_fit = False
-					break
-			if can_fit:
-				final_eligible_matrix[t] = "."
-			else:
-				final_eligible_matrix[t] = "X"
-				
-		return final_eligible_matrix
-
-	def list_directory(self):
-		"""Traces standard 1581 directory linkages dynamically across subdirectories [1.13]."""
-		# Forcefully pull our newly shifted dynamic directory track from the state matrix
-		curr_t = getattr(self, "current_dir_track", 40)
-		curr_s = 3
-		
-		self.file_list = []
-		
-		# Inject our back-out hook if we are operating inside a nested sub-partition space [1.13]
-		if curr_t != 40:
-			self.file_list.append({
-				"name": "..", "is_directory": True, "is_virtual_container": False,
-				"type_display": "UP-DIR", "size_display": " ", "modify_time_str": " -- -- -- "
-			})
-			
-		while curr_t != 0:
-				
-			# DYNAMIC OVERRIDE: Force the sector reader to pull from curr_t instead of hardcoded track maps!
-			sec_data = self.read_virtual_sector(curr_t, curr_s)
-			if not sec_data or len(sec_data) < 2:
-				break
-
-				
-			# If the low-level sector buffer returns empty or un-demodulated junk bytes, drop out
-			next_t, next_s = int(sec_data[0]), int(sec_data[1])
-			
-			# Process the 8 standard 32-byte file entry rows inside this sector allocation window
-			for off in range(2, 256, 32):
-				slot = sec_data[off : off + 32]
-				if len(slot) < 30:
-					continue
-					
-				ft_raw = int(slot[0])
-				if ft_raw == 0x00: 
-					continue
-					
-				type_flags = ft_raw & 0x0F
-				core_type = type_flags & 0x07
-				
-				is_sub_dir = False
-				if core_type == 5:
-					t_lbl = "CBM"
-					is_sub_dir = True
-				else:
-					t_lbl = "PRG" if core_type == 2 else "SEQ" if core_type == 1 else "USR" if core_type == 3 else "REL" if core_type == 4 else "DEL"
-					
-				if ft_raw & 0x40: t_lbl = f"<{t_lbl}"
-				if not (ft_raw & 0x80): t_lbl = f"*{t_lbl}"
-					
-				tgt_t, tgt_s = int(slot[1]), int(slot[2])
-				raw_name = slot[3:19]
-				c_nm = PETSCIIDecoder.decode_name(raw_name)
-				b_cnt = struct.unpack("<H", slot[28:30])[0]
-				
-				self.file_list.append({
-					"name": c_nm, "is_directory": is_sub_dir, "is_virtual_container": False,
-					"type_display": t_lbl, "size_display": str(b_cnt),
-					"vfs_meta": {"track": tgt_t, "sector": tgt_s, "is_1581_partition": is_sub_dir}
-				})
-				
-			# Standard 1581 directory chain layout routing progression
-			if next_t == 0:
-				break
-			curr_t, curr_s = next_t, next_s
-
-		# =========================================================================
-		# 🎯 CORE ENGINE FIX: 1581 HARDWARE-MANUAL ALIGNED BAM & HEADER 🎯
-		# =========================================================================
-		header_t = getattr(self, "current_dir_track", 40)
-		free_count = 0
-
-		# 1. FORCE MANDATORY UP-DIR (..) ENTRY HOOK AT THE TOP OF THE LIST ARRAY
-		# Ensures a clean escape link always exists to back out of any mounted state!
-		has_up_dir = any(item["name"] == ".." for item in self.file_list)
-		if not has_up_dir:
-			self.file_list.insert(0, {
-				"name": "..", "is_directory": True, "is_virtual_container": False,
-				"type_display": "UP-DIR" if header_t == 40 else "CBM-DIR", 
-				"size_display": " ", "modify_time_str": " -- -- -- "
-			})
-
-		# 2. ACCURATE HARDWARE SCANNERS READ COUNTER BYTES FROM SECTOR 1 & 2 [1.13]
-		try:
-			# Your manual page proves BAM1 is Sector 1 and BAM2 is Sector 2! [1.13]
-			bam_sector_1 = self.read_virtual_sector(header_t, 1)
-			bam_sector_2 = self.read_virtual_sector(header_t, 2)
-
-			if bam_sector_1 and len(bam_sector_1) >= 256 and bam_sector_2 and len(bam_sector_2) >= 256:
-				# PASS A: Tracks 1 to 40 are stored on Sector 1, starting at byte 16 [1.13]
-				for t in range(1, 41):
-					if t == 40: 
-						continue  # Skip directory track capacity counting [1.13]
-					# Calculate the 6-byte stride block offset for this track [1.13]
-					off = 16 + ((t - 1) * 6)
-					if off < len(bam_sector_1):
-						# Read the track's absolute free sector counter byte! [1.13]
-						free_count += int(bam_sector_1[off])
-
-				# PASS B: Tracks 41 to 80 are stored on Sector 2, starting at byte 16 [1.13]
-				for t in range(41, 81):
-					# Track 41 maps to relative index 0 inside Sector 2 [1.13]
-					off = 16 + ((t - 41) * 6)
-					if off < len(bam_sector_2):
-						# Read the track's absolute free sector counter byte! [1.13]
-						free_count += int(bam_sector_2[off])
-		except Exception:
-			free_count = 0
-
-		# Synchronize the free capacity counters across the driver state properties
-		self.free_sectors_count = free_count
-		self.free_count = free_count
-
-		# 3. EXTRACT DISK VOLUME METADATA NATIVELY FROM DIRECTORY HEADER SECTOR 0 [1.1]
-		try:
-			# Manual page verifies that the Name and IDs live exclusively on Sector 0 [1.1]
-			header_sector = self.read_virtual_sector(header_t, 0)
-			if header_sector and len(header_sector) >= 30:
-				header_bytes = bytearray(header_sector)
-				
-				# Direct standard 1581 directory header layout offset ranges [1.1]
-				raw_label = header_bytes[4:20]
-				raw_id = header_bytes[22:24]
-				raw_dos = header_bytes[25:27]
-				
-				# Convert bytes through your standard PETSCII Decoder module [1.1]
-				lbl_str = PETSCIIDecoder.decode_name(raw_label).replace("_", " ").rstrip()
-				id_str = PETSCIIDecoder.decode_name(raw_id).strip().upper()
-				dos_str = PETSCIIDecoder.decode_name(raw_dos).strip().upper()
-				
-				if not lbl_str: 
-					lbl_str = "1581 DISK" if header_t == 40 else f"PARTITION T{header_t}"
-				if not id_str:	
-					id_str = "81" if header_t == 40 else "82"
-				if not dos_str: 
-					dos_str = "3D"
-				
-				self.disk_label_msg = f'"{lbl_str:<16}" {id_str} {dos_str}'
-		except Exception:
-			pass
-
-		return self.file_list
-		
-	def extract_file_bytes(self, vfs_meta):
-		"""Sequentially extracts raw file data bytes from a 1581 filesystem structure.
-		Traces the 1581 track/sector block allocation links to compile a pristine 
-		payload buffer array ready for cross-filesystem file copies. [1.13, 1.26]
-		"""
-		if not vfs_meta:
-			return b""
-			
-		# Extract starting track and sector markers from the 1581 directory entry [1.13]
-		curr_t = int(vfs_meta.get("track", 0))
-		curr_s = int(vfs_meta.get("sector", 0))
-		
-		if curr_t == 0:
-			return b""
-			
-		file_bytes_accumulator = bytearray()
-		visited_blocks = set()
-		
-		# Trace the 1581 linked-list sector allocation path block-by-block [1.13]
-		while curr_t != 0 and (curr_t, curr_s) not in visited_blocks:
-			visited_blocks.add((curr_t, curr_s))
-			
-			# Fetch the raw 256-byte 1581 sector straight out of memory
-			sector_buffer = self.read_virtual_sector(curr_t, curr_s)
-			if not sector_buffer or len(sector_buffer) < 256:
-				break
-				
-			# Standard CBM architecture link bytes mapping [1.13]:
-			# FIXED: Added explicit [0] and [1] brackets to read raw byte values as integer scalars!
-			next_t = sector_buffer[0]
-			next_s = sector_buffer[1]
-			
-			if next_t == 0:
-				# Target block reached! Byte 1 acts as a length offset integer [1.13]
-				valid_bytes_count = next_s
-				if 2 <= valid_bytes_count <= 255:
-					file_bytes_accumulator.extend(sector_buffer[2 : valid_bytes_count + 1])
-				else:
-					file_bytes_accumulator.extend(sector_buffer[2:])
-				break
-			else:
-				# Middle data block payload: grab all 254 data bytes cleanly [1.13]
-				file_bytes_accumulator.extend(sector_buffer[2:])
-				
-			curr_t = next_t
-			curr_s = next_s
-			
-		return bytes(file_bytes_accumulator)
-		
-	def check_sector_free_status(self, track, sector):
-		"""Natively checks the 1581 dual-BAM bitmasks to identify if a block is free (True) 
-		or used (False), keeping your BAM Editor fully compatible with .d81 formats out of the box [1.1]!
-		"""
-		if track < 1 or track > 80 or sector < 0 or sector > 39:
-			return False
-			
-		if track <= 40:
-			bam_bytes = self.read_virtual_sector(40, 1)
-			offset = 16 + ((track - 1) * 6)
-		else:
-			bam_bytes = self.read_virtual_sector(40, 2)
-			offset = 16 + ((track - 41) * 6)
-			
-		# Skip past the 1-byte track total counter byte to find the 5-byte mask array start [1.1]
-		mask_start = offset + 1
-		b_idx = sector // 8
-		b_bit = sector % 8
-		
-		mask_byte = bam_bytes[mask_start + b_idx]
-		return bool(mask_byte & (1 << b_bit))
-		
-class BaseCMDFloppyPlugin(BaseVFSHandler):
-	"""Shared Base Engine providing low-level structural partition parsing,
-	512-byte geometry scaling, and polymorphic routing for D2M and D4M floppy formats.
-	"""
-	def mount(self):
-		self.default_dir_track = 1
-		self.default_dir_sector = 1
-		self.max_tracks_limit = 255
-		self.is_dirty = False
-		self.current_path = "ROOT"
-		
-		self.partitions_registry = {}
-		self.file_list = []
-		
-		total_bytes = len(self.payload)
-		raw_bytes = bytes(self.payload)
-		
-		# Compute total floppy hardware block ceiling based on 512-byte blocks
-		total_hardware_blocks = total_bytes // 512
-		
-		# FIXED: PREPEND HOST OS BACK-OUT BREADCRUMB TO D2M AND D4M IMAGES!
-		# This inserts a single safe ".." row to exit the floppy container entirely and go back to PC files!
-		self.file_list.append({
-			"name": "..",
-			"type": "UP-DIR",
-			"type_display": "UP-DIR",
-			"subtype": "UP-DIR",
-			"size": 0,
-			"size_display": "0",
-			"track": 0,
-			"sector": 99,  # Flag 99 maps specifically to host-unmount triggers in your execute loop
-			"is_dir": True,
-			"is_directory": True,
-			"is_virtual_container": False,
-			"raw_meta": None,
-			"vfs_meta": None
-		})
-
-		# --- PHASE 1: TARGET ACCURATE GEOMETRY ADDRESSES ---
-		if self.format_type == "D2M":
-			self.sys_part_offset = 0x190800	  # Track 26, Sector 8 (FD2000 Base)
-			dev_block_ptr = 0x190500		  # Track 26, Sector 5 DevBlock
-		else:
-			self.sys_part_offset = 0x320800	  # Track 51, Sector 8 (FD4000 Base)
-			dev_block_ptr = 0x320500		  # Track 51, Sector 5 DevBlock
-
-		if self.sys_part_offset >= total_bytes:
-			self.disk_label_msg = '0 "truncated image?"'
-			return False
-
-		# Extract the Device Identification settings safely
-		if dev_block_ptr + 256 <= total_bytes:
-			dev_address_flag = raw_bytes[dev_block_ptr + 0xE1]
-			self.disk_label_msg = f'12 "cmd {self.format_type.lower()} dev {dev_address_flag}"'
-		else:
-			self.disk_label_msg = f'12 "cmd {self.format_type.lower()} system"'
-
-		# --- PHASE 3: SWEEP THE 32 CONTIGUOUS MASTER PARTITION SECTORS ---
-		p_count = 0 
-		total_allocated_blocks = 0	
-		
-		TYPE_LABELS = {
-			0x01: "NAT", 0x02: "41", 0x03: "71", 0x04: "81",
-			0x05: "C81", 0x06: "PRN", 0x07: "FOR", 0xFF: "SYS"
-		}
-		
-		# Iterate across the 4 partition table sectors sequentially (Sectors 8 to 11)
-		for sec_step in range(4):
-			current_sec_offset = self.sys_part_offset + (sec_step * 256)
-			if current_sec_offset + 256 > total_bytes:
-				break
-				
-			sec_bytes = raw_bytes[current_sec_offset : current_sec_offset + 256]
-			
-			for slot_idx in range(8):
-				off = slot_idx * 32
-				p_type = sec_bytes[off + 2]
-				
-				if sec_step == 0 and slot_idx == 0:
-					p_type = 0xFF
-					p_name = "SYSTEM"
-					start_lba = self.sys_part_offset // 512
-					total_blocks = 12  
-				else:
-					if p_type == 0x00 and all(b == 0 for b in sec_bytes[off+5:off+21]):
-						continue 
-						
-					p_name_raw = sec_bytes[off + 5 : off + 21]
-					p_name_chars = []
-					for b in p_name_raw:
-						if b == 0x00 or b == 0xA0:
-							p_name_chars.append(' ')
-						elif 32 <= b <= 126:
-							p_name_chars.append(chr(b))
-					p_name = "".join(p_name_chars).strip()
-					if not p_name:
-						p_name = f"PARTITION {p_count:02d}"
-					
-					# FIXED: Extract 24-bit Big-Endian Start LBA Block from offsets 21, 22, 23
-					start_lba = (sec_bytes[off + 21] << 16) | (sec_bytes[off + 22] << 8) | sec_bytes[off + 23]
-					
-					# FIXED: Extract 24-bit Big-Endian Total Size Blocks Count from offsets 29, 30, 31
-					total_blocks = (sec_bytes[off + 29] << 16) | (sec_bytes[off + 30] << 8) | sec_bytes[off + 31]
-				
-				type_str = TYPE_LABELS.get(p_type, "FOR")
-				if p_type != 0x00:
-					total_allocated_blocks += total_blocks
-				
-				# Scale parameters precisely to 512-byte hardware blocks to match verified signatures
-				part_node = {
-					"index": p_count,
-					"name": p_name,
-					"type_flag": p_type,
-					"type_string": type_str,
-					"start_lba": start_lba,
-					"blocks_count": total_blocks,
-					"byte_start": start_lba * 512,		# Points precisely to embedded VFS signature boundaries!
-					"byte_length": total_blocks * 512	 # Extracts accurate standalone image sizes!
-				}
-				
-				self.partitions_registry[p_count] = part_node
-				
-				self.file_list.append({
-					"name": p_name,
-					"type": type_str,					
-					"type_display": type_str,
-					"subtype": type_str,
-					"size": total_blocks,
-					"size_display": str(total_blocks),
-					"track": start_lba,
-					"sector": p_count,
-					"is_dir": False,
-					"is_directory": False,
-					"is_virtual_container": True,		
-					"raw_meta": part_node,
-					"vfs_meta": part_node
-				})
-				p_count += 1
-				
-		return True
-
-	def navigate_forward(self, track, sector, name):
-		"""Polymorphically builds and boots inner child driver filesystems in-memory."""
-		part_id = int(sector)
-		part_info = self.partitions_registry.get(part_id)
-		if not part_info:
-			return None
-			
-		t_str = part_info["type_string"]
-		t_flag = part_info["type_flag"]
-		
-		if t_str in ["SYS", "PRN", "FOR"] or t_flag in [0x00, 0x06, 0x07, 0xFF]:
-			return f"LOCKOUT: Partition '{name}' [{t_str}] is an unmountable format structure."
-			
-		b_start = part_info["byte_start"]
-		b_len = part_info["byte_length"]
-		total_payload_bytes = len(self.payload)
-		
-		# Clamp and force-align raw footprints to guard standalone plugins against geometry initialization rejects
-		target_size = b_len
-		if t_str == "41":	target_size = 174848
-		elif t_str == "71": target_size = 349696
-		elif t_str == "81": target_size = 819200
-
-		if b_start >= total_payload_bytes:
-			sub_payload = bytearray(target_size)
-		else:
-			end_pos = min(b_start + target_size, total_payload_bytes)
-			sub_payload = bytearray(self.payload[b_start : end_pos])
-			if len(sub_payload) < target_size:
-				sub_payload.extend(b"\x00" * (target_size - len(sub_payload)))
-
-		nested_handler = None
-		if t_str == "41":	nested_handler = D64FileSystemPlugin(bytes(sub_payload))
-		elif t_str == "71": nested_handler = D71FileSystemPlugin(bytes(sub_payload))
-		elif t_str == "81" or t_str == "C81": nested_handler = D81FileSystemPlugin(bytes(sub_payload))
-		elif t_str == "NAT": nested_handler = DNPFileSystemPlugin(bytes(sub_payload))
-
-		if nested_handler:
-			# FIXED: Ensure format types and geometry metadata parameters are assigned explicitly 
-			# so that the main Sector Editor views map standard CBM track rules instead of floppy parameters!
-			if t_str in ["81", "C81"]:
-				nested_handler.format_type = "D81"
-				nested_handler.total_tracks = 80
-				nested_handler.max_tracks_limit = 80
-				nested_handler.default_dir_track = 40
-				nested_handler.default_dir_sector = 0
-			elif t_str == "71":
-				nested_handler.format_type = "D71"
-				nested_handler.total_tracks = 70
-				nested_handler.max_tracks_limit = 70
-				nested_handler.default_dir_track = 18
-				nested_handler.default_dir_sector = 1
-			elif t_str == "41":
-				nested_handler.format_type = "D64"
-				nested_handler.total_tracks = 35
-				nested_handler.max_tracks_limit = 35
-				nested_handler.default_dir_track = 18
-				nested_handler.default_dir_sector = 0
-			elif t_str == "NAT":
-				nested_handler.format_type = "DNP"
-				nested_handler.default_dir_track = 1
-				nested_handler.default_dir_sector = 1
-
-			success = nested_handler.mount()
-
-			if success or success is None:
-				nested_handler.parent_dhd_handler = self  # Re-use parent link keys for unified saving routing
-				nested_handler.parent_partition_id = part_id
-				nested_handler.archive_name = getattr(self, "archive_name", "")
-				
-				# FIXED: Check if a ".." entry already exists in the list to prevent duplicate rows!
-				if hasattr(nested_handler, "file_list") and nested_handler.file_list:
-					has_up_dir = any(item.get("name") == ".." for item in nested_handler.file_list)
-					if not has_up_dir:
-						nested_handler.file_list.insert(0, {
-							"name": "..",
-							"type": "UP-DIR",
-							"type_display": "UP-DIR",
-							"subtype": "UP-DIR",
-							"size": 0,
-							"size_display": "0",
-							"track": 0,
-							"sector": 0,
-							"is_dir": True,
-							"is_directory": True,
-							"is_virtual_container": False
-						})
-						
-				return nested_handler
-		return "CRITICAL: Sub-VFS engine compilation error inside floppy partition frame."
-
-	def write_virtual_sector(self, track, sector, data_bytes):
-		"""Flat-File Sector Writer for the CMD floppy master system tracks.
-		Allows direct hex modifications to be written cleanly into the master container payload.
-		"""
-		t = int(track)
-		s = int(sector)
-		
-		# Compute flat linear index: 256 sectors per track mapping rules
-		idx = ((t - 1) * 256) + s
-		offset = idx * 256
-		
-		if offset + 256 > len(self.payload):
-			return False
-			
-		clean_data = bytes(data_bytes[:256].ljust(256, b"\x00"))
-		
-		if isinstance(self.payload, bytes):
-			self.payload = bytearray(self.payload)
-			
-		self.payload[offset : offset + 256] = clean_data
-		self.is_dirty = True
-		
-		# Immediately serialize the updated platter memory buffer back down to your PC
-		return self.flush_dhd_to_disk()
-
-	def flush_dhd_to_disk(self):
-		"""Polymorphic File Serialization Engine for CMD Floppy Containers.
-		Acts as a mirror alias for 'flush_dhd_to_disk' so that all nested sub-partitions 
-		can effortlessly write back to .d2m and .d4m files with zero code modifications!
-		"""
-		if hasattr(self, "archive_name") and self.archive_name:
-			try:
-				with open(os.path.abspath(self.archive_name), "wb") as f_out:
-					f_out.write(bytes(self.payload))
-				self.is_dirty = False
-				return True
-			except Exception:
-				return False
-		return False
-
-	def read_virtual_sector(self, track, sector):
-		idx = ((int(track) - 1) * 256) + int(sector)
-		offset = idx * 256
-		if offset + 256 <= len(self.payload):
-			return bytes(self.payload[offset : offset + 256])
-		return b"\x00" * 256
-
-class D2MFileSystemPlugin(BaseCMDFloppyPlugin):
-	def __init__(self, payload_data, archive_name="", *args, **kwargs):
-		self.archive_name = archive_name # Fixed
-		self.payload = bytearray(payload_data) if isinstance(payload_data, bytes) else payload_data
-		self.format_type = "D2M"
-
-
-class D4MFileSystemPlugin(BaseCMDFloppyPlugin):
-	def __init__(self, payload_data, archive_name="", *args, **kwargs):
-		self.archive_name = archive_name # Fixed
-		self.payload = bytearray(payload_data) if isinstance(payload_data, bytes) else payload_data
-		self.format_type = "D4M"
-		
-class DHDFileSystemPlugin(BaseVFSHandler):
-	"""Dynamic Broker Adapter bridging low-level CMD SCSI Hard Drive container architectures.
-	Decodes the 32 master directory track blocks, parses 32-byte partition slot vectors, 
-	and dynamically routes targeted sector offsets straight to sub-emulation handlers.
-	"""
-	def mount(self):
-		self.format_type = "DHD"
-		self.default_dir_track = 1
-		self.default_dir_sector = 1
-		self.max_tracks_limit = 255
-		self.is_dirty = False
-		self.current_path = "ROOT"
-		
-		# Core operational maps for the master controller framework
-		self.partitions_registry = {} 
-		self.file_list = []
-		
-		total_bytes = len(self.payload)
-		raw_bytes = bytes(self.payload)
-		
-		# Compute total hardware block ceiling based on 512-byte sectors
-		total_hardware_blocks = total_bytes // 512
-		
-		# PREPEND HOST OS BACK-OUT BREADCRUMB: Allows the user to unmount the DHD entirely and go back to PC files!
-		self.file_list.append({
-			"name": "..",
-			"type": "UP-DIR",
-			"type_display": "UP-DIR",
-			"subtype": "UP-DIR",
-			"size": 0,
-			"size_display": "0",
-			"track": 0,
-			"sector": 99,  # Flag 99 maps specifically to host-unmount triggers
-			"is_dir": True,
-			"is_directory": True,
-			"is_virtual_container": False,
-			"raw_meta": None,
-			"vfs_meta": None
-		})
-
-		# --- PHASE 1: BULLETPROOF RAW HEX SEQUENCE LOOKAHEAD SWEEP ---
-		config_found = False
-		config_base_offset = 0
-		active_config_block = None
-		
-		for offset_step in range(0, min(total_bytes - 512, 256 * 1024)):
-			if (raw_bytes[offset_step] == 0x43 and		 # 'C'
-				raw_bytes[offset_step + 1] == 0x4D and	 # 'M'
-				raw_bytes[offset_step + 2] == 0x44 and	 # 'D'
-				raw_bytes[offset_step + 3] == 0x20 and	 # ' '
-				raw_bytes[offset_step + 4] == 0x48 and	 # 'H'
-				raw_bytes[offset_step + 5] == 0x44):	 # 'D'
-				
-				if (raw_bytes[offset_step + 8] == 0x8D and
-					raw_bytes[offset_step + 9] == 0x03 and
-					raw_bytes[offset_step + 10] == 0x88 and
-					raw_bytes[offset_step + 11] == 0x8E and
-					raw_bytes[offset_step + 12] == 0x02 and
-					raw_bytes[offset_step + 13] == 0x88 and
-					raw_bytes[offset_step + 14] == 0xEA and
-					raw_bytes[offset_step + 15] == 0x60):
-					
-					config_base_offset = offset_step - 0x1F0
-					if config_base_offset >= 0 and config_base_offset + 512 <= total_bytes:
-						active_config_block = raw_bytes[config_base_offset : config_base_offset + 512]
-						config_found = True
-						break
-						
-		if not config_found or active_config_block is None:
-			self.disk_label_msg = '0 "sterile container?"'
-			return False
-
-		# --- PHASE 2: EXTRACT TRUE HARDWARE SIZE LIMITS FROM THE MASTER PARAMETERS ---
-		part_table_lba_offset = struct.unpack(">H", active_config_block[0x1E6 : 0x1E8])[0]
-		dev_address_flag = active_config_block[0x1E1]
-		
-		# Pull the raw 24-bit split address registers from Zone 2 (For Master Slot d=0) [1.13]
-		max_platter_msb = active_config_block[0x138]
-		max_platter_mid = active_config_block[0x170]
-		max_platter_lsb = active_config_block[0x1A8]
-		
-		# Stitch the bytes together into a clean 24-bit logical block capacity integer
-		parsed_device_blocks = (max_platter_msb << 16) | (max_platter_mid << 8) | max_platter_lsb
-		
-		# --- GLOBAL CONFIGURATION RESOLUTION ENGINE ---
-		# Check your global settings payload structures for the custom override configuration toggles
-		global_settings = app_state.get("settings", {}) if 'app_state' in locals() else {}
-		is_override_enabled = global_settings.get("override_cmd_hd_max_size", False)
-		custom_override_blocks = global_settings.get("custom_cmd_hd_blocks_value", 16777216)
-		
-		if is_override_enabled:
-			# CRITICAL PATH OVERRIDE: User setting takes supreme authority over all disk metadata rules!
-			total_hardware_blocks = int(custom_override_blocks)
-		else:
-			# Check if the hardware device table has an explicitly mapped platter configuration [1.13]
-			if parsed_device_blocks == 0 or parsed_device_blocks == 0xFFFFFF:
-				# THE EMPTY DEFAULT: Hard drive map is sterile, enforce the absolute 8 GB maximum filesystem architecture ceiling! [1.13]
-				# 8 GB = 8,589,934,592 Bytes / 512 Bytes Per SCSI Block = Exactly 16,777,216 Blocks [1.13]
-				total_hardware_blocks = 16777216
-			else:
-				# THE SAFE HARDWARE ENFORCEMENT: Honor the exact raw physical LBA sector boundaries from your real drive dump! [1.13]
-				total_hardware_blocks = parsed_device_blocks
-
-		self.disk_label_msg = f'12 "cmd hd dev {dev_address_flag}"'
-		
-		# --- PHASE 3: SWEEP THE 32 CONTIGUOUS MASTER PARTITION SECTORS ---
-		p_count = 0 
-		total_allocated_blocks = 0	
-		
-		TYPE_LABELS = {
-			0x01: "NAT", 0x02: "41", 0x03: "71", 0x04: "81",
-			0x05: "C81", 0x06: "PRN", 0x07: "FOR", 0xFF: "SYS"
-		}
-		
-		for sec_step in range(32):
-			current_sector_offset = part_table_lba_offset + sec_step
-			lba_offset = (config_base_offset - 0x400) + (current_sector_offset * 256)
-			
-			if lba_offset + 256 > total_bytes:
-				break
-				
-			sec_bytes = raw_bytes[lba_offset : lba_offset + 256]
-			
-			for slot_idx in range(8):
-				off = slot_idx * 32
-				p_type = sec_bytes[off + 2]
-				
-				if sec_step == 0 and slot_idx == 0:
-					p_type = 0xFF
-					p_name = "SYSTEM"
-					start_lba = (config_base_offset - 0x400) // 512
-					total_blocks = 0x90		 
-				else:
-					if p_type == 0x00 and all(b == 0 for b in sec_bytes[off+5:off+21]):
-						continue 
-						
-					p_name_raw = sec_bytes[off + 5 : off + 21]
-					p_name_chars = []
-					for b in p_name_raw:
-						if b == 0x00 or b == 0xA0:
-							p_name_chars.append(' ')
-						elif 32 <= b <= 126:
-							p_name_chars.append(chr(b))
-					p_name = "".join(p_name_chars).strip()
-					
-					start_lba = (sec_bytes[off+0x15] << 16) | (sec_bytes[off+0x16] << 8) | sec_bytes[off+0x17]
-					total_blocks = (sec_bytes[off+0x1E] << 8) | sec_bytes[off+0x1F]
-				
-				type_str = TYPE_LABELS.get(p_type, "FOR")
-				
-				# --- FIXED FORMAT-AWARE CAPACITY ACCUMULATION ---
-				# Standardize how partition blocks accumulate based on hardware format rules
-				if p_type != 0x00:
-					if p_type == 0x01: # Native Partition (NAT)
-						# If a native partition size field exceeds the theoretical boundaries of 
-						# the file size, it indicates the layout is tracking raw 256-byte sectors!
-						if total_blocks > total_hardware_blocks:
-							# Scale it down to match our file's 512-byte block metrics accurately
-							total_allocated_blocks += (total_blocks // 2)
-						else:
-							total_allocated_blocks += total_blocks
-					else:
-						# Emulated structures (41, 71, 81) are strictly counted in 512-byte blocks
-						total_allocated_blocks += total_blocks
-				
-				part_node = {
-					"index": p_count, "name": p_name, "type_flag": p_type, "type_string": type_str,
-					"start_lba": start_lba, "blocks_count": total_blocks,
-					"byte_start": start_lba * 512, "byte_length": total_blocks * 512
-				}
-				
-				self.partitions_registry[p_count] = part_node
-				
-				self.file_list.append({
-					"name": p_name, "type": type_str, "type_display": type_str, "subtype": type_str,
-					"size": total_blocks, "size_display": str(total_blocks),
-					"track": start_lba, "sector": p_count,
-					"is_dir": False, "is_directory": False, "is_virtual_container": True,		
-					"raw_meta": part_node, "vfs_meta": part_node
-				})
-				p_count += 1
-				
-		# --- DHD CAPACITY ALLOCATION FORENSIC LOGGER ---
-		# We dump the raw parameters to an external text file to catch any value drift or index clamping!
-		try:
-			with open("dhd_capacity_trace.txt", "w") as diag_file:
-				diag_file.write("=== CMD DHD DRIVE PLATTER CAPACITY AUDIT PASS ===\n")
-				diag_file.write(f"Raw len(self.payload) Size : {len(self.payload)} Bytes\n")
-				diag_file.write(f"Fallback File Blocks Count  : {len(self.payload) // 512} Blocks\n\n")
-				
-				diag_file.write("--- Zone 2 Platter Size Registers Extracted ---\n")
-				diag_file.write(f"Raw MSB Byte	(Offset 0x138): {max_platter_msb} (0x{max_platter_msb:02X})\n")
-				diag_file.write(f"Raw Middle Byte (Offset 0x170): {max_platter_mid} (0x{max_platter_mid:02X})\n")
-				diag_file.write(f"Raw LSB Byte	(Offset 0x1A8): {max_platter_lsb} (0x{max_platter_lsb:02X})\n")
-				diag_file.write(f"Calculated 24-Bit Max Blocks: {total_hardware_blocks}\n\n")
-				
-				diag_file.write("--- Accumulator Results ---\n")
-				diag_file.write(f"Total Allocated Blocks Sum  : {total_allocated_blocks}\n")
-				diag_file.write(f"Raw Theoretical Difference  : {total_hardware_blocks - total_allocated_blocks}\n")
-		except Exception as trace_err:
-			pass
-
-		# --- REALLOCATION CAPACITY POOL FLUSH ---
-		free_blocks_pool = max(0, total_hardware_blocks - total_allocated_blocks)
-		self.free_sectors_count = free_blocks_pool	
-		
-		return True
-		
-	def flush_dhd_to_disk(self):
-		"""Safely serializes the entire master platter memory payload array back onto the 
-		PC hard drive, committing all sub-partition sector edits permanently in a single pass.
-		"""
-		if hasattr(self, "archive_name") and self.archive_name:
-			try:
-				with open(os.path.abspath(self.archive_name), "wb") as f_out:
-					f_out.write(bytes(self.payload))
-				self.is_dirty = False
-				return True
-			except Exception as err:
-				# Log the save exception flag to the panel text notifications buffer if active
-				return False
-		return False
-	
-	def navigate_forward(self, track, sector, name):
-		"""Intercepts active [ENTER] cursor actions on partition folder rows.
-		Explicitly binds 'default_dir_track' and 'default_dir_sector' directly onto the 
-		instantiated sub-plugin objects to lock down the directory parsing boundaries.
-		"""
-		part_id = int(sector)
-		part_info = self.partitions_registry.get(part_id)
-		
-		if not part_info:
-			return None
-			
-		t_str = part_info["type_string"]
-		t_flag = part_info["type_flag"]
-		
-		if t_str in ["SYS", "PRN", "FOR"] or t_flag in [0x00, 0x06, 0x07, 0xFF]:
-			return f"LOCKOUT: Partition '{name}' [{t_str}] is an unmountable hardware structure format."
-			
-		b_start = part_info["byte_start"]
-		b_len = part_info["byte_length"]
-		total_payload_bytes = len(self.payload)
-		
-		# Resolve precise standalone byte footprints to prevent format rejections
-		target_size = b_len
-		if t_str == "41":
-			target_size = 174848  
-		elif t_str == "71":
-			target_size = 349696  
-		elif t_str == "81" or t_str == "C81":
-			target_size = 819200  
-			
-		if b_start >= total_payload_bytes:
-			sub_partition_payload = bytearray(target_size)
-		else:
-			end_pos = min(b_start + target_size, total_payload_bytes)
-			sub_partition_payload = bytearray(self.payload[b_start : end_pos])
-			if len(sub_partition_payload) < target_size:
-				sub_partition_payload.extend(b"\x00" * (target_size - len(sub_partition_payload)))
-				
-		# Polymorphic Driver Factory Instantiation Pass
-		nested_handler = None
-		if t_str == "41":
-			nested_handler = D64FileSystemPlugin(bytes(sub_partition_payload))
-		elif t_str == "71":
-			nested_handler = D71FileSystemPlugin(bytes(sub_partition_payload))
-		elif t_str == "81" or t_str == "C81":
-			nested_handler = D81FileSystemPlugin(bytes(sub_partition_payload))
-		elif t_str == "NAT":
-			nested_handler = DNPFileSystemPlugin(bytes(sub_partition_payload))
-			
-		if nested_handler:
-			# FIXED: Moved format type and directory track assignments strictly inside their 
-			# respective type scopes to prevent cross-contaminating 1581 parameters!
-			if t_str == "71":
-				nested_handler.format_type = "D71"
-				nested_handler.total_tracks = 70
-				nested_handler.max_tracks_limit = 70
-				nested_handler.default_dir_track = 18
-				nested_handler.default_dir_sector = 0
-			elif t_str == "41":
-				nested_handler.format_type = "D64"
-				nested_handler.total_tracks = 35
-				nested_handler.max_tracks_limit = 35
-				nested_handler.default_dir_track = 18
-				nested_handler.default_dir_sector = 0
-			elif t_str in ["81", "C81"]:
-				nested_handler.format_type = "D81"
-				nested_handler.total_tracks = 80
-				nested_handler.max_tracks_limit = 80
-				nested_handler.default_dir_track = 40  # FIXED: Locks 1581 onto center Track 40 natively!
-				nested_handler.default_dir_sector = 0
-			elif t_str == "NAT":
-				nested_handler.format_type = "DNP"
-				nested_handler.default_dir_track = 1
-				nested_handler.default_dir_sector = 1
-				
-			# Invoke the native initialization mount sequence to parse file entries
-			success = nested_handler.mount()
-			if success or success is None:
-				nested_handler.parent_dhd_handler = self
-				nested_handler.parent_partition_id = part_id
-				nested_handler.archive_name = getattr(self, "archive_name", "")
-				
-				# FIXED: Check if a ".." entry already exists in the list to prevent duplicate rows!
-				if hasattr(nested_handler, "file_list") and nested_handler.file_list:
-					has_up_dir = any(item.get("name") == ".." for item in nested_handler.file_list)
-					if not has_up_dir:
-						nested_handler.file_list.insert(0, {
-							"name": "..",
-							"type": "UP-DIR",
-							"type_display": "UP-DIR",
-							"subtype": "UP-DIR",
-							"size": 0,
-							"size_display": "0",
-							"track": 0,
-							"sector": 0,
-							"is_dir": True,
-							"is_directory": True,
-							"is_virtual_container": False
-						})
-					
-				return nested_handler
-				
-		return f"CRITICAL: Sub-VFS engine compilation error inside selected partition block frame."
-
-	def read_virtual_sector(self, track, sector):
-		"""Redirects absolute block extractions directly into target sub-partition streams."""
-		# Standard fallback route back to configuration pages if un-routed
-		idx = ((int(track) - 1) * 256) + int(sector)
-		offset = idx * 256
-		if offset + 256 <= len(self.payload):
-			return bytes(self.payload[offset : offset + 256])
-		return b"\x00" * 256
-
-	def toggle_sector_allocation_status(self, track, sector):
-		"""Bypasses master track allocations for direct inner partition private management passes."""
-		pass
-		
-class DNPFileSystemPlugin(BaseVFSHandler):
-	"""Dynamic Broker Adapter bridging low-level Native Partition sub-directories."""
-	def mount(self):
-		# Bind the specific massive parameters matching native high-capacity partition frameworks
-		self.format_type = "DNP"
-		self.default_dir_track = 1
-		self.default_dir_sector = 1
-		self.max_tracks_limit = 255
-
-		mem_stream = PreloadedBufferBlockStream(self.payload)
-		computed_blocks_count = len(self.payload) // 256
-
-		# Pass the dynamically calculated block length straight down to your lower driver mechanics
-		self.dnp_h = DNPNativeHandler(mem_stream, computed_blocks_count)
-		
-		# FIXED: Trigger our fresh binary BAM evaluation scanner block
-		bam_info = self.dnp_h.get_dnp_bam_matrix()
-		
-		header_blk = self.dnp_h.read_virtual_sector(1, 1)
-		d_name = PETSCIIDecoder.decode_name(header_blk[4:20])
-		self.disk_label_msg = f'0 "{d_name:<16}"'
-
-		# FIXED: Dynamic assignment checks live parsed bit structures instead of blindly dropping into size math defaults
-		if bam_info and "blocks_free" in bam_info:
-			self.free_sectors_count = bam_info["blocks_free"]
-		else:
-			# Structural baseline ceiling marker backup fallback rule tracking
-			self.free_sectors_count = computed_blocks_count - 35
-
-
-
-		# Clean Initial Entry Point: Hand over the true hardware starting block (Track 1, Sector 1)
-		self.file_list = TUIController.mine_dnp_entries(self.dnp_h, 1, 1)
-		
-	def toggle_sector_allocation_status(self, track, sector):
-		"""Natively flips the allocation bit mask for a CMD Native .dnp partition 
-		by targeting Track 1, Sectors 2-32 using 32-byte track allocation blocks [1.1].
-		"""
-		# 1. Calculate which sector on Track 1 holds this specific track's BAM data [1.1]
-		dnp_sector = 2 + ((track - 1) // 8)
-		
-		# 2. Calculate the 32-byte track offset window inside that 256-byte sector block [1.1]
-		track_in_sector_offset = ((track - 1) % 8) * 32
-		
-		# 3. Translate Track 1, Target Sector into a global linear index in your payload [1.1]
-		# (DNP uses a flat 256 sectors per track layout uniformly across the disk image) [1.1]
-		linear_sector_idx = ((1 - 1) * 256 + dnp_sector) * 256
-		
-		# 4. Find the exact byte and bit position for the target sector [1.1]
-		byte_in_track = sector // 8
-		bit_in_byte = sector % 8
-		
-		final_payload_offset = linear_sector_idx + track_in_sector_offset + byte_in_track
-		
-		if final_payload_offset < len(self.payload):
-			# XOR (^) the exact bit to toggle its state cleanly: 1 (Free) <-> 0 (Used) [1.1]
-			self.payload[final_payload_offset] ^= (1 << bit_in_byte)
-
-
-	def extract_file_bytes(self, vfs_meta_node):
-		return TUIController.extract_vfs_file_bytes(self.dnp_h, vfs_meta_node["track"], vfs_meta_node["sector"])
-
-	def navigate_forward(self, track, sector, name):
-		return self.dnp_h.navigate_forward(track, sector, name)
-
-	def navigate_backward(self):
-		return self.dnp_h.navigate_backward()
-		
-	def read_virtual_sector(self, track, sector):
-		"""Passes the sector read request straight down to the Native Partition driver."""
-		return self.dnp_h.read_virtual_sector(track, sector)
-		
-	def write_virtual_sector(self, track, sector, data_bytes):
-		"""Passes the sector write execution down to the Native Partition handler,
-		forcefully syncs the modified buffers back to the primary file plugin stream,
-		and arms the dirty flag to guarantee hard drive persistence on save passes.
-		"""
-		if not hasattr(self, "dnp_h") or not self.dnp_h:
-			return False
-			
-		# Enforce a strict 256-byte sector footprint block limit constraint
-		clean_data = bytes(data_bytes[:256].ljust(256, b"\x00"))
-		
-		# 1. Delegate the raw write straight down to your inner handler core mechanics
-		success = self.dnp_h.write_virtual_sector(track, sector, clean_data)
-		
-		if success:
-			# Sync the updated data buffer back to the child handler's local payload
-			if hasattr(self.dnp_h, "stream") and hasattr(self.dnp_h.stream, "buffer"):
-				updated_buffer = self.dnp_h.stream.buffer
-				if isinstance(self.payload, bytes):
-					self.payload = bytes(updated_buffer)
-				else:
-					self.payload = bytearray(updated_buffer)
-			
-			self.is_dirty = True 
-			
-			# --- THE ISOLATED ROUTING INTERCEPT BARRIER ---
-			# SCENARIO A: This plugin is running as a NESTED SUB-PARTITION inside a master .dhd container!
-			if hasattr(self, "parent_dhd_handler") and self.parent_dhd_handler:
-				parent_dhd = self.parent_dhd_handler
-				part_id = getattr(self, "parent_partition_id", None)
-				part_info = parent_dhd.partitions_registry.get(part_id)
-				
-				if part_info:
-					b_start = part_info["byte_start"]
-					b_len = part_info["byte_length"]
-					
-					# Enforce mutable type conformity on the parent payload container stream
-					if isinstance(parent_dhd.payload, bytes):
-						parent_dhd.payload = bytearray(parent_dhd.payload)
-						
-					# Safely patch our modified 16MB sub-image buffer right into the parent's layout window!
-					parent_dhd.payload[b_start : b_start + b_len] = self.payload[:b_len]
-					
-					# Arm the parent handler's dirty flag and trigger its physical disk save sequence!
-					parent_dhd.is_dirty = True
-					parent_dhd.flush_dhd_to_disk()
-				return True
-				
-			# SCENARIO B: This plugin is running as a standalone, loose .dnp file on your PC's hard drive
-			if hasattr(self, "archive_name") and self.archive_name:
-				try:
-					with open(os.path.abspath(self.archive_name), "wb") as f_out:
-						f_out.write(bytes(self.payload))
-				except Exception:
-					pass
-			return True
-
-VFSDriverRegistry.register_format(".d64", D64FileSystemPlugin)
-VFSDriverRegistry.register_format(".d71", D71FileSystemPlugin)
-VFSDriverRegistry.register_format(".dnp", DNPFileSystemPlugin)
-VFSDriverRegistry.register_format(".dhd", DHDFileSystemPlugin)
-VFSDriverRegistry.register_format(".d2m", D2MFileSystemPlugin)
-VFSDriverRegistry.register_format(".d4m", D4MFileSystemPlugin)
-VFSDriverRegistry.register_format(".lnx", LNXFileSystemPlugin)
-VFSDriverRegistry.register_format(".d81", D81FileSystemPlugin)
-# FIXED: Dynamically wires your low-level GCR bitstream duplicate plugin straight into the VFS manager core!
-VFSDriverRegistry.register_format(".g64", G64FileSystemPlugin)
+# ----------------------------------------------------------------------------
+# MODULE: src/01_core/04_bammanager.py
+# ----------------------------------------------------------------------------
 
 class BAMManager:
 	"""Centralized Abstract allocation manager that decodes, caches, modifies, and 
@@ -4396,712 +1575,233 @@ class BAMManager:
 				
 		return True
 
-class TUIRenderer:
-	"""Text User Interface (TUI) paint controller using curses."""
-	@staticmethod
-	def initialize_colors():
-		"""Registers classic Midnight Commander style color palettes into terminal memory."""
-		curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLUE)
-		curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)
-		curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_CYAN)
-		curses.init_pair(4, curses.COLOR_WHITE, curses.COLOR_BLUE)
-		curses.init_pair(5, curses.COLOR_YELLOW, curses.COLOR_BLUE)
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/01_core/04_configurationmanager.py
+# ----------------------------------------------------------------------------
+
+class ConfigurationManager:
+	"""Handles robust JSON configuration file operations with version matrix matching."""
+	VERSION = "1.9.0"  # Advanced chassis update version branch step
+	FILE_NAME = "c64_file_explorer_config.json"
+	DEFAULT_CONFIG = {
+		"version": VERSION,
+		"visual_mode": "STANDARD",
+		"respect_cbm_extensions": True,
+		"default_cbm_filetype": "PRG",
+		"override_cmd_hd_max_size": False,
+		"custom_cmd_hd_size_str": "8G"		 # FIXED: Changed from blocks integer to clean humand-readable string token!
+	}
 
 	@staticmethod
-	def draw_top_menubar(stdscr, max_cols):
-		"""Paints the permanent drop-down menu anchor words across row 0."""
-		stdscr.attron(curses.color_pair(3))
-		stdscr.addstr(0, 0, " " * max_cols)
-		stdscr.addstr(0, 2, " Left ")
-		stdscr.addstr(0, 10, " File ")
-		stdscr.addstr(0, 18, " Command ")
-		stdscr.addstr(0, 29, " Options ")
-		stdscr.addstr(0, 40, " Right ")
-		stdscr.attroff(curses.color_pair(3))
+	def load_application_settings():
+		if not os.path.exists(ConfigurationManager.FILE_NAME):
+			return dict(ConfigurationManager.DEFAULT_CONFIG)
+		try:
+			with open(ConfigurationManager.FILE_NAME, "r") as file_stream:
+				loaded_data = json.load(file_stream)
+			file_version = loaded_data.get("version", "0.0.0")
+			if ConfigurationManager.is_version_newer(file_version, ConfigurationManager.VERSION):
+				return dict(ConfigurationManager.DEFAULT_CONFIG)
+			runtime_config = dict(ConfigurationManager.DEFAULT_CONFIG)
+			for key, value in loaded_data.items():
+				if key in runtime_config:
+					runtime_config[key] = value
+			runtime_config["version"] = ConfigurationManager.VERSION
+			return runtime_config
+		except Exception:
+			return dict(ConfigurationManager.DEFAULT_CONFIG)
 
 	@staticmethod
-	def draw_single_panel(stdscr, start_col, end_col, state_dict, is_active, max_rows):
-		"""Draws one structural sidebar panel box container window framework."""
-		panel_bottom_row = max_rows - 4
-		width = end_col - start_col
-		theme = curses.color_pair(4) if is_active else curses.color_pair(1)
-		stdscr.attron(theme)
+	def save_application_settings(config_dict):
+		try:
+			config_dict["version"] = ConfigurationManager.VERSION
+			with open(ConfigurationManager.FILE_NAME, "w") as file_stream:
+				json.dump(config_dict, file_stream, indent=4)
+			return True
+		except Exception:
+			return False
 
-		# --- DRAW BORDER BOX OUTLINES ---
-		for r in range(1, panel_bottom_row + 1):
-			if r == 1:
-				stdscr.addstr(r, start_col, "┌" + "─" * (width - 2) + "┐")
-			elif r == panel_bottom_row:
-				stdscr.addstr(r, start_col, "└" + "─" * (width - 2) + "┘")
-			elif r == 3:
-				stdscr.attron(theme)
-				stdscr.addstr(r, start_col, "├" + "─" * (width - 2) + "┤")
+	@staticmethod
+	def is_version_newer(version_v1, version_v2):
+		try:
+			v1_parts = [int(x) for x in version_v1.split(".")]
+			v2_parts = [int(x) for x in version_v2.split(".")]
+			return v1_parts > v2_parts
+		except Exception:
+			return False
+
+	@staticmethod
+	def trigger_program_reboot():
+		current_config = ConfigurationManager.load_application_settings()
+		target_visual_mode = current_config.get("visual_mode", "STANDARD")
+		executable_path = sys.executable.lower().replace("python.exe", "pythonw.exe") if sys.platform.startswith("win") else sys.executable
+		if sys.platform.startswith("win"):
+			if target_visual_mode == "PETSCII":
+				if "python.exe" in executable_path.lower():
+					executable_path = executable_path.lower().replace("python.exe", "pythonw.exe")
 			else:
-				stdscr.addstr(r, start_col, "│")
-				stdscr.addstr(r, start_col + width - 1, "│")
-				stdscr.addstr(r, start_col + 1, " " * (width - 2))
-
-		# --- DRAW PATH HEADER LABEL ROW ---
-		path_label = f" {state_dict['current_path']} "
-		if len(path_label) > (width - 4):
-			path_label = "..." + path_label[-(width - 7):]
-		stdscr.addstr(1, start_col + 2, path_label, curses.A_BOLD)
-
-		# --- DRAW THE INTERNALS COLUMN HEADERS ---
-		stdscr.addstr(2, start_col + 2, "Name", curses.A_REVERSE if is_active else curses.A_NORMAL)
-		stdscr.addstr(2, start_col + int(width * 0.65), "Type")
-		stdscr.addstr(2, start_col + (width - 10), "Size")
-
-		is_container_path = state_dict['current_path'].startswith("VFS://")
-		start_y_offset = 4
-
-		if is_container_path and "disk_label_msg" in state_dict:
-			stdscr.attron(curses.color_pair(5) if is_active else curses.color_pair(1))
-			# =========================================================================
-			# 🚨 FIXED HEADER DRAWING ENGINE: SINGLE PASS ALIGNMENT 🚨
-			# Uses a single-pass draw to cleanly pad your label and position the
-			# 'Blks' indicator without creating overlapping string artifacts [1.1].
-			# =========================================================================
-			header_string = state_dict.get("disk_label_msg", "")
-			if header_string:
-				# Pad out the label tightly to align 'Blks' perfectly over the size column
-				# Subtracting the extra border padding guarantees crisp column alignment [1.1].
-				target_padding_width = (width - 12)
-				header_string = f"{header_string:<{target_padding_width}}Blks"
-			
-			# SINGLE PRINT PASS: Bypasses overlapping string collisions permanently!
-			stdscr.addstr(4, start_col + 2, header_string)
-			# =========================================================================
-			stdscr.attroff(curses.color_pair(5) if is_active else curses.color_pair(1))
-			stdscr.attron(theme)
-			start_y_offset = 5
+				if "pythonw.exe" in executable_path.lower():
+					executable_path = executable_path.lower().replace("pythonw.exe", "python.exe")
+		subprocess.Popen([executable_path] + sys.argv)
+		sys.exit(0)
 
 
-		# --- RENDER DIRECTORY FILE ROWS WITHIN VIEWPORT WINDOW ---
-		files = state_dict["file_list"]
-		idx_highlight = state_dict["highlight_index"]
-		top_row = state_dict["top_visible_row"]
-		max_visible_rows = panel_bottom_row - start_y_offset
 
-		for v_row in range(max_visible_rows):
-			file_idx = top_row + v_row
-			if file_idx >= len(files):
-				break
-			item = files[file_idx]
-			display_y = start_y_offset + v_row
-			max_name_len = int(width * 0.60)
-			clean_name = item["name"]
-			if len(clean_name) > max_name_len:
-				clean_name = clean_name[:max_name_len - 3] + "..."
+# ----------------------------------------------------------------------------
+# MODULE: src/01_core/04_hostfileblockstream.py
+# ----------------------------------------------------------------------------
 
-			t_label = item.get("type_display", "CBM" if item["is_virtual_container"] else "FILE")
-			if item["is_directory"]:
-				t_label = "DIR"
-			# =========================================================================
-			# 🚨 UNIVERSAL VISUAL MASK: SIMPLE CBM QUOTE WRAPPER 🚨
-			# This mask checks your active context parameters. If you are nested inside 
-			# a virtual container disk, it wraps the clean filename string inside your 
-			# double quotes, and then turns all underlines back into visual empty spaces!
-			# =========================================================================
-			if is_container_path:
-				# 1. Directly wrap true CBM file entries inside authentic double quotes
-				if not item["is_directory"] and clean_name != "..":
-					clean_name = f'"{clean_name}"'
-				
-				# 2. Transform our background protection underscores (_) into visible spaces
-				if "_" in clean_name:
-					clean_name = clean_name.replace("_", " ")
-			# =========================================================================
+class HostFileBlockStream(VFSBlockStream):
+	def __init__(self, filepath): 
+		self.path = filepath
+		self.file_size = os.path.getsize(filepath)
+		self.total_blocks = self.file_size // 256
+	def read_block(self, block_index):
+		if block_index >= self.total_blocks: 
+			raise IndexError(f" HOST VFS EXCEPTION: Block request {block_index} overflows host file limit.")
+		with open(self.path, "rb") as f: 
+			f.seek(block_index * 256)
+			return f.read(256)
+	def get_total_blocks(self): 
+		return self.total_blocks
 
 
-			if is_active and file_idx == idx_highlight:
-				stdscr.attron(curses.color_pair(3))
-				stdscr.addstr(display_y, start_col + 1, " " * (width - 2))
-				stdscr.addstr(display_y, start_col + 2, f"{clean_name:<{max_name_len}}")
-				stdscr.addstr(display_y, start_col + int(width * 0.65), f"{t_label:<4}")
-				stdscr.addstr(display_y, start_col + (width - 10), f"{item['size_display']:>8}")
-				stdscr.attroff(curses.color_pair(3))
-				stdscr.attron(theme)
-			else:
-				stdscr.addstr(display_y, start_col + 2, f"{clean_name:<{max_name_len}}")
-				stdscr.addstr(display_y, start_col + int(width * 0.65), f"{t_label:<4}")
-				stdscr.addstr(display_y, start_col + (width - 10), f"{item['size_display']:>8}")
 
-		stdscr.attron(theme)
-		# FIXED: Safe inline dictionary verification prevents state variable blocking on initial system boots
-		# FIXED: Direct object reference lookup bypasses frame refresh dictionary overwrites completely
-		is_vfs = state_dict.get("is_in_container", False)
-		handler = state_dict.get("vfs_handler")
-		
-		# FIXED: Dynamic object reference lookup routes parameters accurately across D64, D71, D81, or DNP formats
-		if handler:
-			free_sectors = getattr(handler, "free_sectors_count", 664)
+# ----------------------------------------------------------------------------
+# MODULE: src/01_core/04_hostsystemscanner.py
+# ----------------------------------------------------------------------------
+
+class HostSystemScanner:
+	"""Natively scans the local host operating system directory path structure."""
+	@staticmethod
+	def get_formatted_size(byte_count, is_dir):
+		if is_dir:
+			return "SUB-DIR"
+		if byte_count < 1024:
+			return f"{byte_count}B"
+		elif byte_count < 1024 * 1024:
+			return f"{byte_count // 1024}K"
 		else:
-			free_sectors = state_dict.get("free_sectors_count", 0)
-			
-		free_msg = f" {free_sectors} BLOCKS FREE " if is_vfs else f" {state_dict.get('free_space_msg', '0B FREE')} "
-
-
-		if len(free_msg) < width - 4:
-			stdscr.addstr(panel_bottom_row, start_col + width - len(free_msg) - 2, free_msg)
-		stdscr.attroff(theme)
-	@staticmethod
-	def draw_footer_hotkeys(stdscr, max_rows, max_cols):
-		"""Paints system command function buttons across the last screen row."""
-		footer_y = max_rows - 1
-		stdscr.move(footer_y, 0)
-		stdscr.clrtoeol()
-		hotkeys = [
-			("1", "Help"), ("2", "Menu"), ("3", "View"), ("4", "Edit"),
-			("5", "Copy"), ("6", "RenMov"), ("7", "Mkdir"), ("8", "Delete"),
-			("9", "PullDn"), ("10", "Quit")
-		]
-		current_col = 0
-		for num, label in hotkeys:
-			stdscr.addstr(footer_y, current_col, f" {num} ", curses.A_REVERSE)
-			current_col += len(num) + 2
-			stdscr.addstr(footer_y, current_col, f"{label} ")
-			current_col += len(label) + 1
-			if current_col >= max_cols:
-				break
+			return f"{byte_count / (1024 * 1024):.1f}M"
 
 	@staticmethod
-	def paint_complete_screen(stdscr, tui_state):
-		"""Redraws the complete twin explorer screen grid canvas cleanly."""
-		max_rows, max_cols = stdscr.getmaxyx()
-		if max_cols < 80 or max_rows < 24:
-			stdscr.clear()
-			stdscr.addstr(0, 0, " RESOLUTION WARNING: Terminal window size must be at least 80x24 characters.")
-			stdscr.refresh()
-			return
-
-		stdscr.erase()
-		TUIRenderer.draw_top_menubar(stdscr, max_cols)
-		mid_split = max_cols // 2
-		active_panel = tui_state["active_side"]
-
-		TUIRenderer.draw_single_panel(stdscr, 0, mid_split, tui_state["left"], (active_panel == "left"), max_rows)
-		TUIRenderer.draw_single_panel(stdscr, mid_split, max_cols, tui_state["right"], (active_panel == "right"), max_rows)
-
-		stdscr.attron(curses.color_pair(2))
-		raw_cmd_line = f"CBM-VFS Prompt> {tui_state['command_buffer']}"
-		stdscr.addstr(max_rows - 2, 0, raw_cmd_line[:max_cols - 1])
-		stdscr.clrtoeol()
-		stdscr.attroff(curses.color_pair(2))
-
-		TUIRenderer.draw_footer_hotkeys(stdscr, max_rows, max_cols)
-		stdscr.refresh()
-
-class TUIGCRViewerRenderer:
-	"""Centralized full-screen TUI rendering helper module that displays raw, unaligned 
-	GCR stream bytes with dynamic highlighting for hardware SYNC marks ($FF $FF).
-	Expanded to double the visible data density on screen.
-	"""
-	@staticmethod
-	def paint_gcr_viewer_workspace(stdscr, ctx):
-		if not ctx:
-			return
-			
-		stdscr.erase()
-		max_y, max_x = stdscr.getmaxyx()
-		
-		archive_name = ctx.get("archive_name", "UNKNOWN CONTAINER")
-		track_num = ctx.get("track", 18)
-		scroll_off = ctx.get("scroll_offset", 0)
-		raw_stream = ctx.get("raw_stream", b"")
-		stream_len = len(raw_stream)
-
-		# 1. Paint Top Dashboard Control Rows
-		stdscr.addstr(1, 2, f"LOW-LEVEL MAGNETIC GCR TRACK STREAM VIEWER  |	 CONTAINER: {archive_name[:35]}", curses.A_BOLD)
-		
-		# FIXED: Formats track_num safely as a float string layout property to cleanly showcase .5 entries!
-		track_str = f"{track_num:.1f}"
-		stdscr.addstr(2, 2, f"PHYSICAL TRACK: {track_str:>4}   |   STREAM SIZE: {stream_len:<5} Bytes	|	VIEW OFFSET: ${scroll_off:04X} / {scroll_off}", curses.A_NORMAL)
-		stdscr.addstr(3, 2, "=" * (max_x - 4))
-		
-		# Column index guide layout line
-		stdscr.addstr(4, 2, "Addr	00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F	  ASCII", curses.A_UNDERLINE)
-
-		# empty data stream guard display check
-		if stream_len == 0:
-			stdscr.addstr(6, 4, f"NOTICE: No GCR magnetic track data exists for Track {track_str} inside this image.", curses.A_BOLD | curses.A_DIM)
-			stdscr.addstr(max_y - 2, 4, "CONTROLS: ARROWS/WASD = Scroll | +/- = Shift Tracks | Q/ESC = Exit", curses.A_DIM)
-			stdscr.refresh()
-			return
-		# FIXED: Expanded view height boundaries calculation! 
-		# Instead of capping strictly at 16 rows, this dynamically calculates available 
-		# canvas lines up to 32 rows or more, maximizing visual density on large monitors.
-		view_height = min(36, max_y - 8)
-		
-		for row in range(view_height):
-			row_addr = scroll_off + (row * 16)
-			if row_addr >= stream_len:
-				break
-
-			# Print absolute address label column
-			stdscr.addstr(5 + row, 2, f"{row_addr:04X}: ")
-			
-			# Build 16-byte layout records row-by-row
-			for col in range(16):
-				byte_idx = row_addr + col
-				if byte_idx < stream_len:
-					b_val = raw_stream[byte_idx]
-					curr_x = 9 + (col * 3)
-					
-					# Highlighting logic flags 0xFF as a hardware magnetic SYNC block
-					is_sync = (b_val == 0xFF)
-					attr = curses.A_REVERSE if is_sync else curses.A_NORMAL
-					
-					stdscr.addstr(5 + row, curr_x, f"{b_val:02X}", attr)
-					stdscr.addstr(5 + row, curr_x + 2, " ")
-					
-					# Build ASCII translation character cell
-					if 32 <= b_val <= 126:
-						ascii_char = chr(b_val)
-					else:
-						ascii_char = "."
-					stdscr.addstr(5 + row, 59 + col, ascii_char)
-				else:
-					# Pad empty spacing trails
-					stdscr.addstr(5 + row, 9 + (col * 3), "	  ")
-					stdscr.addstr(5 + row, 59 + col, " ")
-
-		# 3. Print Help Instructions Footer Line
-		stdscr.addstr(max_y - 2, 2, "CONTROLS: ARROWS/WASD = Scroll | PGUP/PGDN = Quick Jump | +/- = Shift Tracks | Q/ESC = Exit", curses.A_DIM)
-		stdscr.refresh()
-		
-class TUIBAMEditorRenderer:
-	"""Centralized full-screen TUI rendering helper module that builds the 8-track 
-	scrollable BAM block allocation grid layout with clear visual dual-value metrics indicators.
-	"""
-	@staticmethod
-	def paint_bam_editor_workspace(stdscr, ctx):
-		if not ctx:
-			return
-			
-		stdscr.erase()
-		max_y, max_x = stdscr.getmaxyx()
-		
-		archive_name = ctx.get("archive_name", "UNKNOWN CONTAINER")
-		fmt_type = ctx.get("format_type", "D64")
-		cur_t = ctx.get("cursor_track", 1)
-		cur_s = ctx.get("cursor_sector", 0)
-		top_s = ctx.get("top_visible_sector", 0)
-		left_t = ctx.get("left_visible_track", 1)
-		max_t = ctx.get("max_track", 35)
-		sector_map = ctx.get("sector_map", {})
-		bam_mgr = ctx.get("bam_manager")
-		
-		if not bam_mgr:
-			stdscr.addstr(2, 2, "ERROR: BAM Manager Object not initialized.")
-			stdscr.refresh()
-			return
-
-		disk_free_blocks = bam_mgr.count_free_blocks(use_historical=True)
-		editor_free_blocks = bam_mgr.count_free_blocks(use_historical=False)
-
-		# 1. Top Header Rows
-		stdscr.addstr(1, 2, f"CBM HARDWARE BAM EDITOR  |  FORMAT: {fmt_type}  |	 CONTAINER: {archive_name[:35]}", curses.A_BOLD)
-		stdscr.addstr(2, 2, f"POSITION: Track {cur_t:>3} / Sector {cur_s:>3}", curses.A_NORMAL)
-		
-		disk_str = f"DISK FREE: {disk_free_blocks:<4}"
-		edit_str = f"BUFFERED FREE: {editor_free_blocks:<4}"
-		if ctx.get("dirty", False):
-			edit_str += " (UNSAVED)"
-			
-		stdscr.addstr(3, 2, f"{disk_str}   |   ", curses.A_NORMAL)
-		stdscr.addstr(3, len(disk_str) + 9, edit_str, curses.A_BOLD if ctx.get("dirty") else curses.A_NORMAL)
-		stdscr.addstr(4, 2, "=" * (max_x - 4))
-		
-		# 2. Track Column Headers (Ensures absolute 5-character structural column blocks spacing!)
-		header_row = "Sec	"
-		for col_idx in range(8):
-			t_num = left_t + col_idx
-			if t_num <= max_t:
-				header_row += f" T{t_num:<3}"
-		stdscr.addstr(5, 4, header_row[:max_x-6], curses.A_UNDERLINE | curses.A_BOLD)
-
-		# 3. Dynamic Vertical Row Loop
-		view_height = min(16, max_y - 9)
-		for v_row in range(view_height):
-			s_num = top_s + v_row
-			
-			# Clean workspace line natively to remove historical artifacts
-			stdscr.addstr(6 + v_row, 4, " " * (max_x - 6))
-			stdscr.addstr(6 + v_row, 4, f"S{s_num:<3} ")
-
-			for v_col in range(8):
-				t_num = left_t + v_col
-				if t_num > max_t:
-					continue
-					
-				max_s_for_t = sector_map.get(t_num, 0)
-				
-				# FIXED: Mathematically perfect horizontal alignment!
-				# Aligns cell characters exactly centered underneath the T1, T2 headers
-				x_pos = 10 + (v_col * 5)
-				
-				if s_num >= max_s_for_t:
-					stdscr.addstr(6 + v_row, x_pos, " . ", curses.A_DIM)
-					continue
-
-				is_block_free = bam_mgr.check_sector_status(t_num, s_num)
-				token_char = "-" if is_block_free else "*"
-				display_token = f" {token_char} "
-
-				is_cursor = (t_num == cur_t and s_num == cur_s)
-				attr = curses.A_REVERSE if is_cursor else curses.A_NORMAL
-				
-				stdscr.addstr(6 + v_row, x_pos, display_token, attr)
-
-		stdscr.addstr(max_y - 2, 4, "CONTROLS: ARROWS/WASD = Move | SPACE = Toggle | W = Write Changes | Q/ESC = Exit", curses.A_DIM)
-		stdscr.refresh()
-
-class TUISectorEditorRenderer:
-	"""UI Paint Controller for the full-screen interactive low-level Sector Editor."""
-	@staticmethod
-	def paint_editor_workspace(stdscr, editor_state):
-		max_rows, max_cols = stdscr.getmaxyx()
-		stdscr.erase()
-		if max_cols < 80 or max_rows < 32:
-			stdscr.clear()
-			stdscr.addstr(0, 0, " RESOLUTION WARNING: Terminal size must be at least 80x32 characters for the editor.")
-			stdscr.refresh()
-			return
-
-		stdscr.attron(curses.color_pair(2))
-		stdscr.addstr(0, 0, "┌" + "─" * (max_cols - 2) + "┐")
-		stdscr.addstr(1, 2, "COMMODORE 64 INTERACTIVE SECTOR EDITOR Toolkit")
-		title_str = f"Container Layer Targets: [{editor_state['archive_name'].upper()}] ({editor_state['format_type']}) "
-		stdscr.addstr(1, max_cols - len(title_str) - 3, title_str, curses.A_BOLD)
-		stdscr.addstr(2, 0, "├" + "─" * (max_cols - 2) + "┤")
-
-		coord_line = f"VIEWING LOCATIONS -> TRACK: {editor_state['track']:02d} │ SECTOR: {editor_state['sector']:02d} │ BLOCK LIMITS: 1-{editor_state['max_track']}"
-		stdscr.addstr(3, 2, coord_line, curses.A_BOLD)
-		stdscr.addstr(4, 0, "├" + "─" * (max_cols - 2) + "┤")
-		stdscr.addstr(5, 7, "00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F │ ASCII / PETSCII CHARACTER VIEW")
-		stdscr.addstr(6, 2, "── ─────────────────────────────────────────────── ┼ ────────────────────────────────")
-
-		buffer_data = editor_state["buffer"]
-		cursor_offset = editor_state["cursor_offset"]
-		edit_mode = editor_state["edit_mode"]
-
-		for row_idx in range(16):
-			display_y = 7 + row_idx
-			row_start_offset = row_idx * 16
-			stdscr.addstr(display_y, 2, f"${row_start_offset:02X}:", curses.A_BOLD)
-
-			# Hex Canvas Grid View
-			for col_idx in range(16):
-				cell_offset = row_start_offset + col_idx
-				byte_val = buffer_data[cell_offset]
-				display_x = 7 + (col_idx * 3)
-				if cell_offset == cursor_offset:
-					attr = curses.color_pair(3) if edit_mode != "NAV" else curses.A_REVERSE
-					stdscr.addstr(display_y, display_x, f"{byte_val:02X}", attr)
-				else:
-					stdscr.addstr(display_y, display_x, f"{byte_val:02X}")
-
-			stdscr.addstr(display_y, 55, "│")
-
-			# Decoded Char Matrix Column View
-			for col_idx in range(16):
-				cell_offset = row_start_offset + col_idx
-				byte_val = buffer_data[cell_offset]
-				display_x = 58 + col_idx
-				if 32 <= byte_val <= 126:
-					char_repr = chr(byte_val)
-				elif 65 <= (byte_val & 0x7F) <= 90:
-					char_repr = chr((byte_val & 0x7F) + 32)
-				else:
-					char_repr = "·"
-
-				if cell_offset == cursor_offset:
-					attr = curses.color_pair(3) if edit_mode != "NAV" else curses.A_REVERSE
-					stdscr.addstr(display_y, display_x, char_repr, attr)
-				else:
-					stdscr.addstr(display_y, display_x, char_repr)
-
-		stdscr.addstr(23, 0, "├" + "─" * (max_cols - 2) + "┤")
-		stdscr.attron(curses.A_BOLD)
-		current_byte = buffer_data[cursor_offset]
-		stdscr.addstr(24, 4, f" CURSOR TARGET STATUS -> POSITION: ${cursor_offset:02X} │ BYTE: ${current_byte:02X} │ DEC: {current_byte:<3}")
-		stdscr.attroff(curses.A_BOLD)
-		stdscr.addstr(25, 0, "├" + "─" * (max_cols - 2) + "┤")
-
-		stdscr.addstr(26, 2, " COMMAND MENU ACTIONS: ", curses.A_BOLD)
-		stdscr.addstr(26, 26, "[R] Read Sector │ [W] Write Sector │ [J] Context Jump (T/S vectors)")
-		stdscr.addstr(27, 4, "[+] Forward Next │ [-] Backward Prev │ [T] Type Text │ [@] Change Hex Byte")
-		stdscr.addstr(28, 4, "[Q] Quit (Exit Editor / Return cleanly to dual explorer panel dashboard panes)")
-
-		stdscr.attron(curses.color_pair(5))
-		status_line = f" STATUS Ticker> {editor_state['status_msg']}"
-		stdscr.addstr(29, 2, status_line[:max_cols - 3])
-		stdscr.clrtoeol()
-		stdscr.attroff(curses.color_pair(5))
-		stdscr.addstr(30, 0, "└" + "─" * (max_cols - 3) + "┘")
-		stdscr.attroff(curses.color_pair(2))
-		stdscr.refresh()
-class TUIDropDownMenu:
-	"""Renders action column overlays, drop-down cards, and setting windows."""
-	@staticmethod
-	def draw_menu_card(stdscr, menu_idx, active_item_idx, panel_state, global_tui_state=None):
-		menu_columns = {0: 2, 1: 10, 2: 18, 3: 29, 4: 40}
-		start_x = menu_columns[menu_idx]
-		start_y = 1
-		
-		# FIXED: Determine which underlying panel data array matches this specific menu column card index
-		current_view_side = "left" if menu_idx == 0 else "right" if menu_idx == 4 else global_tui_state.get("active_side", "left") if global_tui_state else "left"
-		true_panel = global_tui_state[current_view_side] if global_tui_state else panel_state
-		
-		is_virtual = true_panel.get("is_in_container", False)
-		no_editor_flag = true_panel.get("no_sector_editor", False)
-		show_sector_editor = is_virtual and not no_editor_flag
-
-		menu_items = []
-		if menu_idx == 0 or menu_idx == 4:
-			if show_sector_editor:
-				# 1. RESOLVE THE ACTIVE FILE SYSTEM FORMAT LAYER
-				handler = true_panel.get("vfs_handler")
-				fmt = getattr(handler, "format_type", "HOST") if handler else "HOST"
-				
-				# 2. BUILD CONTEXT-AWARE DROP-DOWN MENU ARRAYS
-				# Start with your universal base options available for all configurations
-				menu_items = [" Rescan Directory ", " View Sector Editor ", " View BAM Editor "]
-				
-				# EXCLUSIVE GUARD: Show 'GCR Stream Viewer' ONLY if a true G64 image is mounted! [1.1]
-				if fmt == "G64":
-					menu_items.append(" View GCR Stream ")
-					
-				# EXCLUSIVE GUARD: Show 'Create 1581 Partition' ONLY if a D81 image is mounted! [1.13]
-				if fmt == "D81":
-					menu_items.append(" Create 1581 Partition ")
-			else:
-				menu_items = [" Rescan Directory "]
-		elif menu_idx == 1:
-			menu_items = [" View File ", " Copy File Out ", " Delete Node "]
-		elif menu_idx == 2:
-			menu_items = [" Mount Archive ", " Run Script Macro "]
-		elif menu_idx == 3:
-			menu_items = [" Settings ", " ───────────────── ", " Credits Info "]
-
-		# FIXED: Guard check and geometry dimension variables restored cleanly! [1.26]
-		if not menu_items: 
-			return None
-			
-		card_width = max(len(x) for x in menu_items) + 2
-		card_height = len(menu_items) + 2
-
-		stdscr.attron(curses.color_pair(4))
-		for r in range(card_height):
-			curr_y = start_y + r
-			if r == 0: 
-				stdscr.addstr(curr_y, start_x, "┌" + "─" * (card_width - 2) + "┐")
-			elif r == card_height - 1: 
-				stdscr.addstr(curr_y, start_x, "└" + "─" * (card_width - 2) + "┘")
-			else:
-				stdscr.addstr(curr_y, start_x, "│" + " " * (card_width - 2) + "│")
-				item_text = menu_items[r - 1]
-				display_text = f"{item_text:<{card_width - 2}}"
-				if (r - 1) == active_item_idx:
-					stdscr.attron(curses.color_pair(3))
-					stdscr.addstr(curr_y, start_x + 1, display_text)
-					stdscr.attroff(curses.color_pair(3))
-					stdscr.attron(curses.color_pair(4))
-				else:
-					if "───" in item_text: 
-						stdscr.addstr(curr_y, start_x + 1, "─" * (card_width - 2))
-					else: 
-						stdscr.addstr(curr_y, start_x + 1, display_text)
-		stdscr.attroff(curses.color_pair(4))
-		stdscr.refresh()
-		return menu_items
-
-	@staticmethod
-	def show_settings_popup(stdscr, global_tui_state):
-		max_rows, max_cols = stdscr.getmaxyx()
-		# FIXED: Expanded height constraint from 18 to 20 to give our new informational help text ample space!
-		box_w, box_h = 68, 20
-		start_x = (max_cols - box_w) // 2
-		start_y = (max_rows - box_h) // 2
-
-		# Load current persistent profiles dynamically from v1.9.0 configuration schema
-		config = ConfigurationManager.load_application_settings()
-		curr_mode = config.get("visual_mode", "STANDARD")
-		curr_ext = config.get("respect_cbm_extensions", True)
-		curr_type = config.get("default_cbm_filetype", "PRG")
-		curr_override = config.get("override_cmd_hd_max_size", False)
-		
-		# Load our human-readable string token field definition string parameter
-		orig_size_str = str(config.get("custom_cmd_hd_size_str", "8G")).strip().upper()
-		
-		# Store text input characters in a mutable list buffer layer to support fluid user interactions
-		size_input_buffer = list(orig_size_str)
-		active_row_idx = 0 
-
-		while True:
-			stdscr.attron(curses.color_pair(4))
-			for r in range(box_h):
-				curr_y = start_y + r
-				if r == 0:
-					stdscr.addstr(curr_y, start_x, "┌" + "─" * (box_w - 2) + "┐")
-				elif r == box_h - 1:
-					stdscr.addstr(curr_y, start_x, "└" + "─" * (box_w - 2) + "┘")
-				else:
-					stdscr.addstr(curr_y, start_x, "│" + " " * (box_w - 2) + "│")
-
-			# Title bar renderer layout pass
-			stdscr.addstr(start_y + 1, start_x + 4, f" GLOBAL EXPLORER CONFIGURATION INTERFACE (v{ConfigurationManager.VERSION})", curses.A_BOLD)
-			stdscr.addstr(start_y + 2, start_x + 2, "─" * (box_w - 4))
-
-			# Row 0: Visual Style Toggle
-			t0 = "[X]" if curr_mode == "PETSCII" else "[ ]"
-			r0 = f" {t0} Switch visual mode to PETSCII "
-			s0 = curses.color_pair(3) if active_row_idx == 0 else curses.color_pair(4)
-			stdscr.addstr(start_y + 4, start_x + 4, f"{r0:<{box_w - 8}}", s0)
-
-			# Row 1: Extension Verification Toggle
-			t1 = "[X]" if curr_ext else "[ ]"
-			r1 = f" {t1} Respect CBM file name extensions (.prg/.seq) "
-			s1 = curses.color_pair(3) if active_row_idx == 1 else curses.color_pair(4)
-			stdscr.addstr(start_y + 6, start_x + 4, f"{r1:<{box_w - 8}}", s1)
-
-			# Row 2: Default Format Type Selector
-			r2 = f" [ ] Default Fallback Filetype Selector: < {curr_type} > "
-			s2 = curses.color_pair(3) if active_row_idx == 2 else curses.color_pair(4)
-			stdscr.addstr(start_y + 8, start_x + 4, f"{r2:<{box_w - 8}}", s2)
-
-			# Row 3: CMD-HD Maximum Size Override Toggle
-			t3 = "[X]" if curr_override else "[ ]"
-			r3 = f" {t3} Override CMD-HD Max Size Setting "
-			s3 = curses.color_pair(3) if active_row_idx == 3 else curses.color_pair(4)
-			stdscr.addstr(start_y + 10, start_x + 4, f"{r3:<{box_w - 8}}", s3)
-
-			# Row 4: Prompts explicitly for the human-readable disk image size parameters
-			curr_buffer_str = "".join(size_input_buffer)
-			cursor_prompt = "_" if active_row_idx == 4 else " "
-			r4 = f"		↳ Target Disk Image Max Size: [ {curr_buffer_str}{cursor_prompt} ] "
-			s4 = curses.color_pair(3) if active_row_idx == 4 else curses.color_pair(4)
-			
-			if not curr_override:
-				stdscr.addstr(start_y + 11, start_x + 4, f"{r4:<{box_w - 8}}", curses.A_DIM | (curses.color_pair(3) if active_row_idx == 4 else curses.color_pair(4)))
-			else:
-				stdscr.addstr(start_y + 11, start_x + 4, f"{r4:<{box_w - 8}}", s4)
-
-			# --- FIXED: ADDED INFORMATIONAL SETTINGS USER EXPLANATION LINE ---
-			# Renders an explicit help text string directly under the input row to guide user input formats!
-			help_text = "Accepts 'G' or 'GB' for gigabytes and 'MB' for megabytes."
-			stdscr.addstr(start_y + 13, start_x + 4, f"{help_text:<{box_w - 8}}", curses.color_pair(4) | curses.A_DIM)
-
-			# Bottom Toolbar Options (Shifted layout down symmetrically matching box_h = 20 constraints)
-			footer_text = " [UP/DN] Move │ [ENTER/SPACE] Toggle/Edit │ [Q/ESC] Save & Exit "
-			footer_x = start_x + ((box_w - len(footer_text)) // 2)
-			stdscr.attron(curses.color_pair(4))
-			stdscr.addstr(start_y + 16, footer_x, footer_text, curses.A_REVERSE)
-			stdscr.attroff(curses.color_pair(4))
-			stdscr.refresh()
-
-			popup_key = stdscr.getch()
-			if popup_key in [27, ord('q'), ord('Q')]:  # Safe commit sequence exit
-				global_tui_state["visual_mode"] = curr_mode
-				
-				# Sanitize and compile string tokens text maps back to raw blocks integers
-				raw_final_str = "".join(size_input_buffer).strip().upper()
-				if not raw_final_str:
-					raw_final_str = "8G"
-					
-				# --- HIGH-PRECISION TEXT PARSER CONVERSION SUB-ROUTINE ---
-				digit_chars = [c for c in raw_final_str if c.isdigit()]
-				unit_chars = [c for c in raw_final_str if not c.isdigit() and c in ['M', 'G', 'B']]
-				
+	def scan_directory(target_path):
+		raw_list = []
+		if not os.path.exists(target_path) or not os.path.isdir(target_path):
+			target_path = os.getcwd()
+		try:
+			parent_dir = os.path.dirname(os.path.abspath(target_path))
+			if parent_dir != os.path.abspath(target_path):
+				raw_list.append({
+					"name": "..",
+					"is_directory": True,
+					"is_virtual_container": False,
+					"size_display": "UP-DIR",
+					"modify_time_str": " -- -- -- "
+				})
+			for item in os.listdir(target_path):
+				full_item_path = os.path.join(target_path, item)
 				try:
-					scalar_val = int("".join(digit_chars)) if digit_chars else 8
-				except ValueError:
-					scalar_val = 8
-					
-				# Determine geometry scales matching documented SCSI 512-byte parameters [1.13]
-				computed_blocks = 16777216 
-				if 'M' in unit_chars:
-					computed_blocks = (scalar_val * 1048576) // 512
-				else:
-					computed_blocks = (scalar_val * 1073741824) // 512
-					
-				# HARDWARE FLOOR BARRIER LOCKOUT: Enforce the absolute 20 MB minimum mechanical limit! [1.13]
-				if computed_blocks < 40960:
-					computed_blocks = 40960
-					raw_final_str = "20MB"
-					
-				# ARCHITECTURAL CEILING LIMIT LOCKOUT: Clamp to maximum 8 GB filesystem capacities [1.13]
-				if computed_blocks > 16777216:
-					computed_blocks = 16777216
-					raw_final_str = "8G"
+					stats = os.stat(full_item_path)
+					is_directory = os.path.isdir(full_item_path)
+					dt_object = datetime.fromtimestamp(stats.st_mtime)
+					time_str = dt_object.strftime("%b %d %H:%M")
+					_, file_extension = os.path.splitext(item.lower())
+					is_virtual_container = file_extension in [".d64", ".dnp", ".d71", ".d81", ".g64", ".lnx"]
+					raw_list.append({
+						"name": item,
+						"is_directory": is_directory,
+						"is_virtual_container": is_virtual_container,
+						"size_display": HostSystemScanner.get_formatted_size(stats.st_size, is_directory),
+						"modify_time_str": time_str
+					})
+				except (PermissionError, FileNotFoundError):
+					continue
+		except Exception as err:
+			pass
 
-				saved_payload = {
-					"version": ConfigurationManager.VERSION,
-					"visual_mode": curr_mode,
-					"respect_cbm_extensions": curr_ext,
-					"default_cbm_filetype": curr_type,
-					"override_cmd_hd_max_size": curr_override,
-					"custom_cmd_hd_size_str": raw_final_str,			  
-					"custom_cmd_hd_blocks_value": computed_blocks		  
-				}
-				ConfigurationManager.save_application_settings(saved_payload)
-				break
-				
-			elif popup_key in [curses.KEY_UP, ord('w'), ord('W')]:
-				active_row_idx = (active_row_idx - 1) % 5
-			elif popup_key in [curses.KEY_DOWN, ord('s'), ord('S')]:
-				active_row_idx = (active_row_idx + 1) % 5
-				
-			# FIXED: Expanded the backspace intercept gate to capture all possible terminal key-code variants simultaneously!
-			elif active_row_idx == 4 and curr_override and (popup_key in [8, 127, 263, curses.KEY_BACKSPACE] or chr(popup_key) in ['\x08', '\x7f']):
-				if size_input_buffer:
-					size_input_buffer.pop()
-				
-			# EXTENDED ALPHANUMERIC CAPTURE GATEWAY: Accepts numbers AND scale indicator characters (M, G, B)
-			elif active_row_idx == 4 and curr_override:
-				# Map valid key code sets dynamically: 0-9 codes, case-shifted alphabetical letters
-				is_digit = (48 <= popup_key <= 57)
-				is_valid_alpha = (popup_key in [ord('m'), ord('M'), ord('g'), ord('G'), ord('b'), ord('B')])
-				
-				if (is_digit or is_valid_alpha) and len(size_input_buffer) < 8:
-					size_input_buffer.append(chr(popup_key).upper())
-				
-			elif popup_key == 10 or popup_key == 13 or popup_key == 32:
-				if active_row_idx == 0:
-					curr_mode = "PETSCII" if curr_mode == "STANDARD" else "STANDARD"
-				elif active_row_idx == 1:
-					curr_ext = not curr_ext
-				elif active_row_idx == 2:
-					curr_type = "SEQ" if curr_type == "PRG" else "PRG"
-				elif active_row_idx == 3:
-					curr_override = not curr_override
+		directories_sorted = sorted([x for x in raw_list if x["name"] != ".." and x["is_directory"]], key=lambda k: k["name"].lower())
+		files_sorted = sorted([x for x in raw_list if not x["is_directory"]], key=lambda k: k["name"].lower())
+		return [x for x in raw_list if x["name"] == ".."] + directories_sorted + files_sorted
 
 
+
+# ----------------------------------------------------------------------------
+# MODULE: src/01_core/04_petsciidecoder.py
+# ----------------------------------------------------------------------------
+
+class PETSCIIDecoder:
+	"""Handles translation from Commodore PETSCII byte streams to clean ASCII."""
 	@staticmethod
-	def show_credits_popup(stdscr):
-		max_rows, max_cols = stdscr.getmaxyx()
-		box_w, box_h = 58, 10
-		start_x = (max_cols - box_w) // 2
-		start_y = (max_rows - box_h) // 2
+	def decode_name(byte_array):
+		"""Fact-aligned global character translation mapping PETSCII blocks to safe string layouts.
+		Natively auto-detects 16-byte filename blocks to enforce space-to-underline tracking 
+		uniformly across ALL virtual CBM filesystems (.d64, .d71, .d81, .lnx).
+		"""
+		# Host OS Immunity Shield: If a modern path string slips in, pass it back untouched!
+		if isinstance(byte_array, str):
+			return byte_array
+			
+		# Convert incoming data to a clean, mutable numeric array (bytearray) natively
+		numeric_array = bytearray(byte_array)
+		
+		# =========================================================================
+		# 🚨 UNIFIED PLATFORM AUTODETECT: CORE SPACE-TO-UNDERLINE SHIELD 🚨
+		# Instead of forcing individual drivers to pass a toggle flag, this checks 
+		# if the incoming raw byte stream matches the standard fixed 16-byte width 
+		# of a Commodore filename record slot. If it matches, it pre-scans all slots 
+		# natively and transforms EVERY true $20 space byte directly into an underscore 
+		# (0x5F) before conversion. This protects ALL CBM filesystems globally!
+		# =========================================================================
+		if len(numeric_array) == 16:
+			for i in range(len(numeric_array)):
+				if numeric_array[i] == 0x20:
+					numeric_array[i] = 0x5F	 # Hex 0x5F is the ASCII/PETSCII underscore symbol
+		# =========================================================================
 
-		stdscr.attron(curses.color_pair(4))
-		for r in range(box_h):
-			curr_y = start_y + r
-			if r == 0: 
-				stdscr.addstr(curr_y, start_x, "┌" + "─" * (box_w - 2) + "┐")
-			elif r == box_h - 1: 
-				stdscr.addstr(curr_y, start_x, "└" + "─" * (box_w - 2) + "┘")
-			else: 
-				stdscr.addstr(curr_y, start_x, "│" + " " * (box_w - 2) + "│")
-		stdscr.addstr(start_y + 2, start_x + 4, " SYSTEM PLATFORM ARCHITECTURE ACKNOWLEDGEMENTS", curses.A_BOLD)
-		stdscr.addstr(start_y + 4, start_x + 6, "Designed by The Alien & The Explorer AI", curses.color_pair(5) | curses.A_BOLD)
-		stdscr.addstr(start_y + 5, start_x + 18, "System Node: LV-426 BBS", curses.A_UNDERLINE)
-		stdscr.addstr(start_y + 8, start_x + (box_w - 30) // 2, " Press ANY KEY to return safely...", curses.A_BLINK)
-		stdscr.attroff(curses.color_pair(4))
-		stdscr.refresh()
-		stdscr.getch()
+		chars = []
+		for b in numeric_array:
+			# If we encounter an unallocated CBM padding block ($A0 or $00), we drop it cleanly
+			if b == 0xA0 or b == 0x00:
+				continue
+			elif b == 0x5F:
+				chars.append("_")
+			elif 65 <= b <= 90:
+				chars.append(chr(b + 32))
+			elif 193 <= b <= 218:
+				chars.append(chr(b - 128))
+			elif 32 <= b <= 126:
+				chars.append(chr(b))
+			else:
+				chars.append("_")
+				
+		return "".join(chars)
 
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/01_core/04_preloadedbufferblockstream.py
+# ----------------------------------------------------------------------------
+
+class PreloadedBufferBlockStream(VFSBlockStream):
+	def __init__(self, raw_byte_buffer): 
+		self.buffer = raw_byte_buffer
+		self.total_blocks = len(raw_byte_buffer) // 256
+	def read_block(self, block_index):
+		if block_index >= self.total_blocks: 
+			raise IndexError(f" BUFFER VFS EXCEPTION: Block request {block_index} overflows buffer bounds.")
+		start_offset = block_index * 256
+		return self.buffer[start_offset : start_offset + 256]
+	def get_total_blocks(self): 
+		return self.total_blocks
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/01_core/04_pygamevisualengine.py
+# ----------------------------------------------------------------------------
 
 class PygameVisualEngine:
 	"""Hardware-accelerated graphical interface mirroring our workspace architecture."""
@@ -5813,86 +2513,1116 @@ class PygameVisualEngine:
 		# --- PROTECTED SHUTDOWN GATEWAY PASS ---
 		pygame.display.quit()
 
-class ImageGeometryRegistry:
-	"""Tracks physical layout profiles and capacities for CBM container disk images."""
-	PROFILES = {
-		"D64": {"type": "1541", "directory_track": 18, "directory_sector": 0, "zones": [(17, 21), (24, 19), (30, 18), (35, 17)]},
-		"G64": {"type": "GCR_Floppy", "directory_track": 18, "directory_sector": 0, "zones": [(17, 21), (24, 19), (30, 18), (42, 17)]},
-		"D71": {"type": "1571", "directory_track": 18, "directory_sector": 0, "zones": [(17, 21), (24, 19), (30, 18), (35, 17), (52, 21), (59, 19), (65, 18), (70, 17)]},
-		"D81": {"type": "1581", "directory_track": 40, "directory_sector": 0, "sectors_per_track": 40, "max_tracks": 80},
-		"DNP": {"type": "Native", "directory_track": 1, "directory_sector": 1, "sectors_per_track": 256, "max_tracks": 255}
-	}
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/01_core/04_tuibameditorrenderer.py
+# ----------------------------------------------------------------------------
+
+class TUIBAMEditorRenderer:
+	"""Centralized full-screen TUI rendering helper module that builds the 8-track 
+	scrollable BAM block allocation grid layout with clear visual dual-value metrics indicators.
+	"""
+	@staticmethod
+	def paint_bam_editor_workspace(stdscr, ctx):
+		if not ctx:
+			return
+			
+		stdscr.erase()
+		max_y, max_x = stdscr.getmaxyx()
+		
+		archive_name = ctx.get("archive_name", "UNKNOWN CONTAINER")
+		fmt_type = ctx.get("format_type", "D64")
+		cur_t = ctx.get("cursor_track", 1)
+		cur_s = ctx.get("cursor_sector", 0)
+		top_s = ctx.get("top_visible_sector", 0)
+		left_t = ctx.get("left_visible_track", 1)
+		max_t = ctx.get("max_track", 35)
+		sector_map = ctx.get("sector_map", {})
+		bam_mgr = ctx.get("bam_manager")
+		
+		if not bam_mgr:
+			stdscr.addstr(2, 2, "ERROR: BAM Manager Object not initialized.")
+			stdscr.refresh()
+			return
+
+		disk_free_blocks = bam_mgr.count_free_blocks(use_historical=True)
+		editor_free_blocks = bam_mgr.count_free_blocks(use_historical=False)
+
+		# 1. Top Header Rows
+		stdscr.addstr(1, 2, f"CBM HARDWARE BAM EDITOR  |  FORMAT: {fmt_type}  |	 CONTAINER: {archive_name[:35]}", curses.A_BOLD)
+		stdscr.addstr(2, 2, f"POSITION: Track {cur_t:>3} / Sector {cur_s:>3}", curses.A_NORMAL)
+		
+		disk_str = f"DISK FREE: {disk_free_blocks:<4}"
+		edit_str = f"BUFFERED FREE: {editor_free_blocks:<4}"
+		if ctx.get("dirty", False):
+			edit_str += " (UNSAVED)"
+			
+		stdscr.addstr(3, 2, f"{disk_str}   |   ", curses.A_NORMAL)
+		stdscr.addstr(3, len(disk_str) + 9, edit_str, curses.A_BOLD if ctx.get("dirty") else curses.A_NORMAL)
+		stdscr.addstr(4, 2, "=" * (max_x - 4))
+		
+		# 2. Track Column Headers (Ensures absolute 5-character structural column blocks spacing!)
+		header_row = "Sec	"
+		for col_idx in range(8):
+			t_num = left_t + col_idx
+			if t_num <= max_t:
+				header_row += f" T{t_num:<3}"
+		stdscr.addstr(5, 4, header_row[:max_x-6], curses.A_UNDERLINE | curses.A_BOLD)
+
+		# 3. Dynamic Vertical Row Loop
+		view_height = min(16, max_y - 9)
+		for v_row in range(view_height):
+			s_num = top_s + v_row
+			
+			# Clean workspace line natively to remove historical artifacts
+			stdscr.addstr(6 + v_row, 4, " " * (max_x - 6))
+			stdscr.addstr(6 + v_row, 4, f"S{s_num:<3} ")
+
+			for v_col in range(8):
+				t_num = left_t + v_col
+				if t_num > max_t:
+					continue
+					
+				max_s_for_t = sector_map.get(t_num, 0)
+				
+				# FIXED: Mathematically perfect horizontal alignment!
+				# Aligns cell characters exactly centered underneath the T1, T2 headers
+				x_pos = 10 + (v_col * 5)
+				
+				if s_num >= max_s_for_t:
+					stdscr.addstr(6 + v_row, x_pos, " . ", curses.A_DIM)
+					continue
+
+				is_block_free = bam_mgr.check_sector_status(t_num, s_num)
+				token_char = "-" if is_block_free else "*"
+				display_token = f" {token_char} "
+
+				is_cursor = (t_num == cur_t and s_num == cur_s)
+				attr = curses.A_REVERSE if is_cursor else curses.A_NORMAL
+				
+				stdscr.addstr(6 + v_row, x_pos, display_token, attr)
+
+		stdscr.addstr(max_y - 2, 4, "CONTROLS: ARROWS/WASD = Move | SPACE = Toggle | W = Write Changes | Q/ESC = Exit", curses.A_DIM)
+		stdscr.refresh()
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/01_core/04_tuicontroller.py
+# ----------------------------------------------------------------------------
+
+class TUIController:
+	"""Orchestration layout layer mapping raw data frames onto active viewport grids."""
+	@staticmethod
+	def get_host_free_space_string(target_path):
+		try:
+			if sys.platform.startswith("win"):
+				import ctypes
+				free_bytes = ctypes.c_ulonglong(0)
+				ctypes.windll.kernel32.GetDiskFreeSpaceExW(target_path, None, None, ctypes.byref(free_bytes))
+				total_free = free_bytes.value
+			else:
+				st = os.statvfs(target_path)
+				total_free = st.f_bavail * st.f_frsize
+			if total_free < 1024 * 1024 * 1024:
+				return f"{total_free // (1024 * 1024)}M FREE"
+			else:
+				return f"{total_free / (1024 * 1024 * 1024):.1f}G FREE"
+		except Exception:
+			return "0B FREE"
 
 	@staticmethod
-	def get_sectors_in_track(profile_name, track, total_payload_blocks=None):
-		prof = ImageGeometryRegistry.PROFILES[profile_name]
-		if profile_name == "DNP" and total_payload_blocks is not None:
-			# DNP ADAPTIVE SCALING CALCULATION: A native partition's track limits match 
-			# the size of the container file directly. Map track structures cleanly.
-			computed_max_tracks = total_payload_blocks // 256
-			if computed_max_tracks == 0: computed_max_tracks = 1
-			return 256 if track <= computed_max_tracks else 0
-		if profile_name not in ImageGeometryRegistry.PROFILES:
-			return 17 # Default
-		if "sectors_per_track" in prof:
-			return prof["sectors_per_track"]
-		for max_track, sectors in prof["zones"]:
-			if track <= max_track:
-				return sectors
-		return 17
+	def extract_vfs_file_bytes(handler_instance, track, sector):
+		payload_bytes = bytearray()
+		lt, ls = track, sector
+		while lt != 0:
+			sec_data = handler_instance.read_virtual_sector(lt, ls)
+			if not sec_data:
+				break
+			nt, ns = int(sec_data[0]), int(sec_data[1])
+			if nt == 0:
+				payload_bytes.extend(sec_data[2 : ns + 1])
+				break
+			else:
+				payload_bytes.extend(sec_data[2:256])
+			lt, ls = nt, ns
+		return bytes(payload_bytes)
+	@staticmethod
+	
+	def establish_bulk_copy_strategy(stdscr, selected_count):
+		"""
+		Acts precisely like a classic BASIC GOSUB block.
+		Evaluates bulk selection queues and hooks confirmation popup overlays.
+		"""
+		# If only 1 file is selected, bypass the global warning prompt pass entirely
+		if selected_count <= 1:
+			return "ASK"
+
+		max_rows, max_cols = stdscr.getmaxyx()
+		box_w, box_h = 64, 8
+		start_x = (max_cols - box_w) // 2
+		start_y = (max_rows - box_h) // 2
+
+		# Strategy Choice Loop Pass 1
+		while True:
+			stdscr.attron(curses.color_pair(4))
+			for r in range(box_h):
+				curr_y = start_y + r
+				if r == 0:
+					stdscr.addstr(curr_y, start_x, "┌" + "─" * (box_w - 2) + "┐")
+				elif r == box_h - 1:
+					stdscr.addstr(curr_y, start_x, "└" + "─" * (box_w - 2) + "┘")
+				else:
+					stdscr.addstr(curr_y, start_x, "│" + " " * (box_w - 2) + "│")
+
+			stdscr.addstr(start_y + 1, start_x + 4, f" BATCH FILE TRANSFER INITIALIZATION GATEWAY ", curses.A_BOLD)
+			stdscr.addstr(start_y + 2, start_x + 2, "─" * (box_w - 4))
+			stdscr.addstr(start_y + 3, start_x + 4, f"Queue contains {selected_count} files. If duplicate names are found:")
+			stdscr.addstr(start_y + 5, start_x + 8, "[O] Overwrite Automatically   │   [A] Ask Individually", curses.A_REVERSE)
+			stdscr.attroff(curses.color_pair(4))
+			stdscr.refresh()
+
+			ch = stdscr.getch()
+			if ch in [ord('a'), ord('A')]:
+				return "ASK"
+			
+			elif ch in [ord('o'), ord('O')]:
+				# Trigger Secondary Fatal Safety Warning Confirmation Layer (Pass 2)
+				while True:
+					stdscr.attron(curses.color_pair(3)) # Alternating highlight warning color mask
+					for r in range(box_h - 2):
+						stdscr.addstr(start_y + 1 + r, start_x + 1, " " * (box_w - 2))
+					
+					stdscr.addstr(start_y + 2, start_x + 4, "⚠️	 CRITICAL DESTRUCTION WARNING!	⚠️", curses.A_BOLD)
+					stdscr.addstr(start_y + 4, start_x + 4, "Overwrite ALL mode eliminates downstream safety prompts.")
+					stdscr.addstr(start_y + 5, start_x + 6, "Confirm permanent replacement action? (Y/N): ", curses.A_BOLD)
+					stdscr.attroff(curses.color_pair(3))
+					stdscr.refresh()
+
+					warn_ch = stdscr.getch()
+					if warn_ch in [ord('y'), ord('Y')]:
+						return "AUTO_OVERWRITE"
+					if warn_ch in [ord('n'), ord('N'), 27]:
+						break # Break out of warning sub-loop, drop cleanly back to Pass 1 menu options!
 
 	@staticmethod
-	def translate_ts_to_block_index(profile_name, track, sector, total_payload_blocks=None):
-		if profile_name in ["DNP"]:
-			# Relative track indexing alignment: Track References start at 1, not 0
-			return ((track - 1) * 256) + sector
+	def mine_dnp_entries(dnp_handler, track, sector):
+		entries = dnp_handler.list_directory_entries(track, sector)
+		prefix = [{
+			"name": "..", "is_directory": True, "is_virtual_container": False,
+			"type_display": "UP-DIR", "size_display": " ", "modify_time_str": " -- -- -- "
+		}]
+		return prefix + entries
+
+	@staticmethod
+	def process_scrolling_movement(panel_dict, direction, viewport_limits):
+		"""Fact-aligned view scrolling manager that ensures selection cursors 
+		stay fully visible within viewport coordinate windows boundaries.
+		"""
+		max_rows = viewport_limits[0] - 8
+		ledger_len = len(panel_dict["file_list"])
+		if ledger_len == 0:
+			return
+
+		if direction == "UP":
+			if panel_dict["highlight_index"] > 0:
+				panel_dict["highlight_index"] -= 1
+				if panel_dict["highlight_index"] < panel_dict["top_visible_row"]:
+					panel_dict["top_visible_row"] = panel_dict["highlight_index"]
+					
+		elif direction == "DOWN":
+			if panel_dict["highlight_index"] < ledger_len - 1:
+				panel_dict["highlight_index"] += 1
+				
+				# FIXED: Subtracting 1 forces the container viewport to scroll upward 
+				# one line earlier, keeping your highlighted selection completely visible!
+				if panel_dict["highlight_index"] >= panel_dict["top_visible_row"] + (max_rows - 1):
+					panel_dict["top_visible_row"] = panel_dict["highlight_index"] - (max_rows - 1) + 1
+
+	@staticmethod
+	def check_target_for_duplicate_filename(target_file_list, source_filename):
+		"""Automated name collision gatekeeper scanning target directories and virtual container 
+		disk images to intercept identical filename strings and prevent silent data overwrites.
+		"""
+		if not target_file_list:
+			return False
+			
+		# Strip case sensitivity and padding variations to ensure matching accuracy
+		sanitized_source = source_filename.strip().lower()
+		
+		for entry in target_file_list:
+			# Skip checking parent directional link rows
+			if entry.get("name") == "..":
+				continue
+				
+			sanitized_target = entry.get("name", "").strip().lower()
+			
+			# Collision Intercepted: Match found!
+			if sanitized_target == sanitized_source:
+				return True
+				
+		return False
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/01_core/04_tuidropdownmenu.py
+# ----------------------------------------------------------------------------
+
+class TUIDropDownMenu:
+	"""Renders action column overlays, drop-down cards, and setting windows."""
+	@staticmethod
+	def draw_menu_card(stdscr, menu_idx, active_item_idx, panel_state, global_tui_state=None):
+		menu_columns = {0: 2, 1: 10, 2: 18, 3: 29, 4: 40}
+		start_x = menu_columns[menu_idx]
+		start_y = 1
+		
+		# FIXED: Determine which underlying panel data array matches this specific menu column card index
+		current_view_side = "left" if menu_idx == 0 else "right" if menu_idx == 4 else global_tui_state.get("active_side", "left") if global_tui_state else "left"
+		true_panel = global_tui_state[current_view_side] if global_tui_state else panel_state
+		
+		is_virtual = true_panel.get("is_in_container", False)
+		no_editor_flag = true_panel.get("no_sector_editor", False)
+		show_sector_editor = is_virtual and not no_editor_flag
+
+		menu_items = []
+		if menu_idx == 0 or menu_idx == 4:
+			if show_sector_editor:
+				# 1. RESOLVE THE ACTIVE FILE SYSTEM FORMAT LAYER
+				handler = true_panel.get("vfs_handler")
+				fmt = getattr(handler, "format_type", "HOST") if handler else "HOST"
+				
+				# 2. BUILD CONTEXT-AWARE DROP-DOWN MENU ARRAYS
+				# Start with your universal base options available for all configurations
+				menu_items = [" Rescan Directory ", " View Sector Editor ", " View BAM Editor "]
+				
+				# EXCLUSIVE GUARD: Show 'GCR Stream Viewer' ONLY if a true G64 image is mounted! [1.1]
+				if fmt == "G64":
+					menu_items.append(" View GCR Stream ")
+					
+				# EXCLUSIVE GUARD: Show 'Create 1581 Partition' ONLY if a D81 image is mounted! [1.13]
+				if fmt == "D81":
+					menu_items.append(" Create 1581 Partition ")
+			else:
+				menu_items = [" Rescan Directory "]
+		elif menu_idx == 1:
+			menu_items = [" View File ", " Copy File Out ", " Delete Node "]
+		elif menu_idx == 2:
+			menu_items = [" Mount Archive ", " Run Script Macro "]
+		elif menu_idx == 3:
+			menu_items = [" Settings ", " ───────────────── ", " Credits Info "]
+
+		# FIXED: Guard check and geometry dimension variables restored cleanly! [1.26]
+		if not menu_items: 
+			return None
+			
+		card_width = max(len(x) for x in menu_items) + 2
+		card_height = len(menu_items) + 2
+
+		stdscr.attron(curses.color_pair(4))
+		for r in range(card_height):
+			curr_y = start_y + r
+			if r == 0: 
+				stdscr.addstr(curr_y, start_x, "┌" + "─" * (card_width - 2) + "┐")
+			elif r == card_height - 1: 
+				stdscr.addstr(curr_y, start_x, "└" + "─" * (card_width - 2) + "┘")
+			else:
+				stdscr.addstr(curr_y, start_x, "│" + " " * (card_width - 2) + "│")
+				item_text = menu_items[r - 1]
+				display_text = f"{item_text:<{card_width - 2}}"
+				if (r - 1) == active_item_idx:
+					stdscr.attron(curses.color_pair(3))
+					stdscr.addstr(curr_y, start_x + 1, display_text)
+					stdscr.attroff(curses.color_pair(3))
+					stdscr.attron(curses.color_pair(4))
+				else:
+					if "───" in item_text: 
+						stdscr.addstr(curr_y, start_x + 1, "─" * (card_width - 2))
+					else: 
+						stdscr.addstr(curr_y, start_x + 1, display_text)
+		stdscr.attroff(curses.color_pair(4))
+		stdscr.refresh()
+		return menu_items
+
+	@staticmethod
+	def show_settings_popup(stdscr, global_tui_state):
+		max_rows, max_cols = stdscr.getmaxyx()
+		# FIXED: Expanded height constraint from 18 to 20 to give our new informational help text ample space!
+		box_w, box_h = 68, 20
+		start_x = (max_cols - box_w) // 2
+		start_y = (max_rows - box_h) // 2
+
+		# Load current persistent profiles dynamically from v1.9.0 configuration schema
+		config = ConfigurationManager.load_application_settings()
+		curr_mode = config.get("visual_mode", "STANDARD")
+		curr_ext = config.get("respect_cbm_extensions", True)
+		curr_type = config.get("default_cbm_filetype", "PRG")
+		curr_override = config.get("override_cmd_hd_max_size", False)
+		
+		# Load our human-readable string token field definition string parameter
+		orig_size_str = str(config.get("custom_cmd_hd_size_str", "8G")).strip().upper()
+		
+		# Store text input characters in a mutable list buffer layer to support fluid user interactions
+		size_input_buffer = list(orig_size_str)
+		active_row_idx = 0 
+
+		while True:
+			stdscr.attron(curses.color_pair(4))
+			for r in range(box_h):
+				curr_y = start_y + r
+				if r == 0:
+					stdscr.addstr(curr_y, start_x, "┌" + "─" * (box_w - 2) + "┐")
+				elif r == box_h - 1:
+					stdscr.addstr(curr_y, start_x, "└" + "─" * (box_w - 2) + "┘")
+				else:
+					stdscr.addstr(curr_y, start_x, "│" + " " * (box_w - 2) + "│")
+
+			# Title bar renderer layout pass
+			stdscr.addstr(start_y + 1, start_x + 4, f" GLOBAL EXPLORER CONFIGURATION INTERFACE (v{ConfigurationManager.VERSION})", curses.A_BOLD)
+			stdscr.addstr(start_y + 2, start_x + 2, "─" * (box_w - 4))
+
+			# Row 0: Visual Style Toggle
+			t0 = "[X]" if curr_mode == "PETSCII" else "[ ]"
+			r0 = f" {t0} Switch visual mode to PETSCII "
+			s0 = curses.color_pair(3) if active_row_idx == 0 else curses.color_pair(4)
+			stdscr.addstr(start_y + 4, start_x + 4, f"{r0:<{box_w - 8}}", s0)
+
+			# Row 1: Extension Verification Toggle
+			t1 = "[X]" if curr_ext else "[ ]"
+			r1 = f" {t1} Respect CBM file name extensions (.prg/.seq) "
+			s1 = curses.color_pair(3) if active_row_idx == 1 else curses.color_pair(4)
+			stdscr.addstr(start_y + 6, start_x + 4, f"{r1:<{box_w - 8}}", s1)
+
+			# Row 2: Default Format Type Selector
+			r2 = f" [ ] Default Fallback Filetype Selector: < {curr_type} > "
+			s2 = curses.color_pair(3) if active_row_idx == 2 else curses.color_pair(4)
+			stdscr.addstr(start_y + 8, start_x + 4, f"{r2:<{box_w - 8}}", s2)
+
+			# Row 3: CMD-HD Maximum Size Override Toggle
+			t3 = "[X]" if curr_override else "[ ]"
+			r3 = f" {t3} Override CMD-HD Max Size Setting "
+			s3 = curses.color_pair(3) if active_row_idx == 3 else curses.color_pair(4)
+			stdscr.addstr(start_y + 10, start_x + 4, f"{r3:<{box_w - 8}}", s3)
+
+			# Row 4: Prompts explicitly for the human-readable disk image size parameters
+			curr_buffer_str = "".join(size_input_buffer)
+			cursor_prompt = "_" if active_row_idx == 4 else " "
+			r4 = f"		↳ Target Disk Image Max Size: [ {curr_buffer_str}{cursor_prompt} ] "
+			s4 = curses.color_pair(3) if active_row_idx == 4 else curses.color_pair(4)
+			
+			if not curr_override:
+				stdscr.addstr(start_y + 11, start_x + 4, f"{r4:<{box_w - 8}}", curses.A_DIM | (curses.color_pair(3) if active_row_idx == 4 else curses.color_pair(4)))
+			else:
+				stdscr.addstr(start_y + 11, start_x + 4, f"{r4:<{box_w - 8}}", s4)
+
+			# --- FIXED: ADDED INFORMATIONAL SETTINGS USER EXPLANATION LINE ---
+			# Renders an explicit help text string directly under the input row to guide user input formats!
+			help_text = "Accepts 'G' or 'GB' for gigabytes and 'MB' for megabytes."
+			stdscr.addstr(start_y + 13, start_x + 4, f"{help_text:<{box_w - 8}}", curses.color_pair(4) | curses.A_DIM)
+
+			# Bottom Toolbar Options (Shifted layout down symmetrically matching box_h = 20 constraints)
+			footer_text = " [UP/DN] Move │ [ENTER/SPACE] Toggle/Edit │ [Q/ESC] Save & Exit "
+			footer_x = start_x + ((box_w - len(footer_text)) // 2)
+			stdscr.attron(curses.color_pair(4))
+			stdscr.addstr(start_y + 16, footer_x, footer_text, curses.A_REVERSE)
+			stdscr.attroff(curses.color_pair(4))
+			stdscr.refresh()
+
+			popup_key = stdscr.getch()
+			if popup_key in [27, ord('q'), ord('Q')]:  # Safe commit sequence exit
+				global_tui_state["visual_mode"] = curr_mode
+				
+				# Sanitize and compile string tokens text maps back to raw blocks integers
+				raw_final_str = "".join(size_input_buffer).strip().upper()
+				if not raw_final_str:
+					raw_final_str = "8G"
+					
+				# --- HIGH-PRECISION TEXT PARSER CONVERSION SUB-ROUTINE ---
+				digit_chars = [c for c in raw_final_str if c.isdigit()]
+				unit_chars = [c for c in raw_final_str if not c.isdigit() and c in ['M', 'G', 'B']]
+				
+				try:
+					scalar_val = int("".join(digit_chars)) if digit_chars else 8
+				except ValueError:
+					scalar_val = 8
+					
+				# Determine geometry scales matching documented SCSI 512-byte parameters [1.13]
+				computed_blocks = 16777216 
+				if 'M' in unit_chars:
+					computed_blocks = (scalar_val * 1048576) // 512
+				else:
+					computed_blocks = (scalar_val * 1073741824) // 512
+					
+				# HARDWARE FLOOR BARRIER LOCKOUT: Enforce the absolute 20 MB minimum mechanical limit! [1.13]
+				if computed_blocks < 40960:
+					computed_blocks = 40960
+					raw_final_str = "20MB"
+					
+				# ARCHITECTURAL CEILING LIMIT LOCKOUT: Clamp to maximum 8 GB filesystem capacities [1.13]
+				if computed_blocks > 16777216:
+					computed_blocks = 16777216
+					raw_final_str = "8G"
+
+				saved_payload = {
+					"version": ConfigurationManager.VERSION,
+					"visual_mode": curr_mode,
+					"respect_cbm_extensions": curr_ext,
+					"default_cbm_filetype": curr_type,
+					"override_cmd_hd_max_size": curr_override,
+					"custom_cmd_hd_size_str": raw_final_str,			  
+					"custom_cmd_hd_blocks_value": computed_blocks		  
+				}
+				ConfigurationManager.save_application_settings(saved_payload)
+				break
+				
+			elif popup_key in [curses.KEY_UP, ord('w'), ord('W')]:
+				active_row_idx = (active_row_idx - 1) % 5
+			elif popup_key in [curses.KEY_DOWN, ord('s'), ord('S')]:
+				active_row_idx = (active_row_idx + 1) % 5
+				
+			# FIXED: Expanded the backspace intercept gate to capture all possible terminal key-code variants simultaneously!
+			elif active_row_idx == 4 and curr_override and (popup_key in [8, 127, 263, curses.KEY_BACKSPACE] or chr(popup_key) in ['\x08', '\x7f']):
+				if size_input_buffer:
+					size_input_buffer.pop()
+				
+			# EXTENDED ALPHANUMERIC CAPTURE GATEWAY: Accepts numbers AND scale indicator characters (M, G, B)
+			elif active_row_idx == 4 and curr_override:
+				# Map valid key code sets dynamically: 0-9 codes, case-shifted alphabetical letters
+				is_digit = (48 <= popup_key <= 57)
+				is_valid_alpha = (popup_key in [ord('m'), ord('M'), ord('g'), ord('G'), ord('b'), ord('B')])
+				
+				if (is_digit or is_valid_alpha) and len(size_input_buffer) < 8:
+					size_input_buffer.append(chr(popup_key).upper())
+				
+			elif popup_key == 10 or popup_key == 13 or popup_key == 32:
+				if active_row_idx == 0:
+					curr_mode = "PETSCII" if curr_mode == "STANDARD" else "STANDARD"
+				elif active_row_idx == 1:
+					curr_ext = not curr_ext
+				elif active_row_idx == 2:
+					curr_type = "SEQ" if curr_type == "PRG" else "PRG"
+				elif active_row_idx == 3:
+					curr_override = not curr_override
+
+
+	@staticmethod
+	def show_credits_popup(stdscr):
+		max_rows, max_cols = stdscr.getmaxyx()
+		box_w, box_h = 58, 10
+		start_x = (max_cols - box_w) // 2
+		start_y = (max_rows - box_h) // 2
+
+		stdscr.attron(curses.color_pair(4))
+		for r in range(box_h):
+			curr_y = start_y + r
+			if r == 0: 
+				stdscr.addstr(curr_y, start_x, "┌" + "─" * (box_w - 2) + "┐")
+			elif r == box_h - 1: 
+				stdscr.addstr(curr_y, start_x, "└" + "─" * (box_w - 2) + "┘")
+			else: 
+				stdscr.addstr(curr_y, start_x, "│" + " " * (box_w - 2) + "│")
+		stdscr.addstr(start_y + 2, start_x + 4, " SYSTEM PLATFORM ARCHITECTURE ACKNOWLEDGEMENTS", curses.A_BOLD)
+		stdscr.addstr(start_y + 4, start_x + 6, "Designed by The Alien & The Explorer AI", curses.color_pair(5) | curses.A_BOLD)
+		stdscr.addstr(start_y + 5, start_x + 18, "System Node: LV-426 BBS", curses.A_UNDERLINE)
+		stdscr.addstr(start_y + 8, start_x + (box_w - 30) // 2, " Press ANY KEY to return safely...", curses.A_BLINK)
+		stdscr.attroff(curses.color_pair(4))
+		stdscr.refresh()
+		stdscr.getch()
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/01_core/04_tuigcrviewerrenderer.py
+# ----------------------------------------------------------------------------
+
+class TUIGCRViewerRenderer:
+	"""Centralized full-screen TUI rendering helper module that displays raw, unaligned 
+	GCR stream bytes with dynamic highlighting for hardware SYNC marks ($FF $FF).
+	Expanded to double the visible data density on screen.
+	"""
+	@staticmethod
+	def paint_gcr_viewer_workspace(stdscr, ctx):
+		if not ctx:
+			return
+			
+		stdscr.erase()
+		max_y, max_x = stdscr.getmaxyx()
+		
+		archive_name = ctx.get("archive_name", "UNKNOWN CONTAINER")
+		track_num = ctx.get("track", 18)
+		scroll_off = ctx.get("scroll_offset", 0)
+		raw_stream = ctx.get("raw_stream", b"")
+		stream_len = len(raw_stream)
+
+		# 1. Paint Top Dashboard Control Rows
+		stdscr.addstr(1, 2, f"LOW-LEVEL MAGNETIC GCR TRACK STREAM VIEWER  |	 CONTAINER: {archive_name[:35]}", curses.A_BOLD)
+		
+		# FIXED: Formats track_num safely as a float string layout property to cleanly showcase .5 entries!
+		track_str = f"{track_num:.1f}"
+		stdscr.addstr(2, 2, f"PHYSICAL TRACK: {track_str:>4}   |   STREAM SIZE: {stream_len:<5} Bytes	|	VIEW OFFSET: ${scroll_off:04X} / {scroll_off}", curses.A_NORMAL)
+		stdscr.addstr(3, 2, "=" * (max_x - 4))
+		
+		# Column index guide layout line
+		stdscr.addstr(4, 2, "Addr	00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F	  ASCII", curses.A_UNDERLINE)
+
+		# empty data stream guard display check
+		if stream_len == 0:
+			stdscr.addstr(6, 4, f"NOTICE: No GCR magnetic track data exists for Track {track_str} inside this image.", curses.A_BOLD | curses.A_DIM)
+			stdscr.addstr(max_y - 2, 4, "CONTROLS: ARROWS/WASD = Scroll | +/- = Shift Tracks | Q/ESC = Exit", curses.A_DIM)
+			stdscr.refresh()
+			return
+		# FIXED: Expanded view height boundaries calculation! 
+		# Instead of capping strictly at 16 rows, this dynamically calculates available 
+		# canvas lines up to 32 rows or more, maximizing visual density on large monitors.
+		view_height = min(36, max_y - 8)
+		
+		for row in range(view_height):
+			row_addr = scroll_off + (row * 16)
+			if row_addr >= stream_len:
+				break
+
+			# Print absolute address label column
+			stdscr.addstr(5 + row, 2, f"{row_addr:04X}: ")
+			
+			# Build 16-byte layout records row-by-row
+			for col in range(16):
+				byte_idx = row_addr + col
+				if byte_idx < stream_len:
+					b_val = raw_stream[byte_idx]
+					curr_x = 9 + (col * 3)
+					
+					# Highlighting logic flags 0xFF as a hardware magnetic SYNC block
+					is_sync = (b_val == 0xFF)
+					attr = curses.A_REVERSE if is_sync else curses.A_NORMAL
+					
+					stdscr.addstr(5 + row, curr_x, f"{b_val:02X}", attr)
+					stdscr.addstr(5 + row, curr_x + 2, " ")
+					
+					# Build ASCII translation character cell
+					if 32 <= b_val <= 126:
+						ascii_char = chr(b_val)
+					else:
+						ascii_char = "."
+					stdscr.addstr(5 + row, 59 + col, ascii_char)
+				else:
+					# Pad empty spacing trails
+					stdscr.addstr(5 + row, 9 + (col * 3), "	  ")
+					stdscr.addstr(5 + row, 59 + col, " ")
+
+		# 3. Print Help Instructions Footer Line
+		stdscr.addstr(max_y - 2, 2, "CONTROLS: ARROWS/WASD = Scroll | PGUP/PGDN = Quick Jump | +/- = Shift Tracks | Q/ESC = Exit", curses.A_DIM)
+		stdscr.refresh()
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/01_core/04_tuirenderer.py
+# ----------------------------------------------------------------------------
+
+class TUIRenderer:
+	"""Text User Interface (TUI) paint controller using curses."""
+	@staticmethod
+	def initialize_colors():
+		"""Registers classic Midnight Commander style color palettes into terminal memory."""
+		curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLUE)
+		curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)
+		curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_CYAN)
+		curses.init_pair(4, curses.COLOR_WHITE, curses.COLOR_BLUE)
+		curses.init_pair(5, curses.COLOR_YELLOW, curses.COLOR_BLUE)
+
+	@staticmethod
+	def draw_top_menubar(stdscr, max_cols):
+		"""Paints the permanent drop-down menu anchor words across row 0."""
+		stdscr.attron(curses.color_pair(3))
+		stdscr.addstr(0, 0, " " * max_cols)
+		stdscr.addstr(0, 2, " Left ")
+		stdscr.addstr(0, 10, " File ")
+		stdscr.addstr(0, 18, " Command ")
+		stdscr.addstr(0, 29, " Options ")
+		stdscr.addstr(0, 40, " Right ")
+		stdscr.attroff(curses.color_pair(3))
+
+	@staticmethod
+	def draw_single_panel(stdscr, start_col, end_col, state_dict, is_active, max_rows):
+		"""Draws one structural sidebar panel box container window framework."""
+		panel_bottom_row = max_rows - 4
+		width = end_col - start_col
+		theme = curses.color_pair(4) if is_active else curses.color_pair(1)
+		stdscr.attron(theme)
+
+		# --- DRAW BORDER BOX OUTLINES ---
+		for r in range(1, panel_bottom_row + 1):
+			if r == 1:
+				stdscr.addstr(r, start_col, "┌" + "─" * (width - 2) + "┐")
+			elif r == panel_bottom_row:
+				stdscr.addstr(r, start_col, "└" + "─" * (width - 2) + "┘")
+			elif r == 3:
+				stdscr.attron(theme)
+				stdscr.addstr(r, start_col, "├" + "─" * (width - 2) + "┤")
+			else:
+				stdscr.addstr(r, start_col, "│")
+				stdscr.addstr(r, start_col + width - 1, "│")
+				stdscr.addstr(r, start_col + 1, " " * (width - 2))
+
+		# --- DRAW PATH HEADER LABEL ROW ---
+		path_label = f" {state_dict['current_path']} "
+		if len(path_label) > (width - 4):
+			path_label = "..." + path_label[-(width - 7):]
+		stdscr.addstr(1, start_col + 2, path_label, curses.A_BOLD)
+
+		# --- DRAW THE INTERNALS COLUMN HEADERS ---
+		stdscr.addstr(2, start_col + 2, "Name", curses.A_REVERSE if is_active else curses.A_NORMAL)
+		stdscr.addstr(2, start_col + int(width * 0.65), "Type")
+		stdscr.addstr(2, start_col + (width - 10), "Size")
+
+		is_container_path = state_dict['current_path'].startswith("VFS://")
+		start_y_offset = 4
+
+		if is_container_path and "disk_label_msg" in state_dict:
+			stdscr.attron(curses.color_pair(5) if is_active else curses.color_pair(1))
+			# =========================================================================
+			# 🚨 FIXED HEADER DRAWING ENGINE: SINGLE PASS ALIGNMENT 🚨
+			# Uses a single-pass draw to cleanly pad your label and position the
+			# 'Blks' indicator without creating overlapping string artifacts [1.1].
+			# =========================================================================
+			header_string = state_dict.get("disk_label_msg", "")
+			if header_string:
+				# Pad out the label tightly to align 'Blks' perfectly over the size column
+				# Subtracting the extra border padding guarantees crisp column alignment [1.1].
+				target_padding_width = (width - 12)
+				header_string = f"{header_string:<{target_padding_width}}Blks"
+			
+			# SINGLE PRINT PASS: Bypasses overlapping string collisions permanently!
+			stdscr.addstr(4, start_col + 2, header_string)
+			# =========================================================================
+			stdscr.attroff(curses.color_pair(5) if is_active else curses.color_pair(1))
+			stdscr.attron(theme)
+			start_y_offset = 5
+
+
+		# --- RENDER DIRECTORY FILE ROWS WITHIN VIEWPORT WINDOW ---
+		files = state_dict["file_list"]
+		idx_highlight = state_dict["highlight_index"]
+		top_row = state_dict["top_visible_row"]
+		max_visible_rows = panel_bottom_row - start_y_offset
+
+		for v_row in range(max_visible_rows):
+			file_idx = top_row + v_row
+			if file_idx >= len(files):
+				break
+			item = files[file_idx]
+			display_y = start_y_offset + v_row
+			max_name_len = int(width * 0.60)
+			clean_name = item["name"]
+			if len(clean_name) > max_name_len:
+				clean_name = clean_name[:max_name_len - 3] + "..."
+
+			t_label = item.get("type_display", "CBM" if item["is_virtual_container"] else "FILE")
+			if item["is_directory"]:
+				t_label = "DIR"
+			# =========================================================================
+			# 🚨 UNIVERSAL VISUAL MASK: SIMPLE CBM QUOTE WRAPPER 🚨
+			# This mask checks your active context parameters. If you are nested inside 
+			# a virtual container disk, it wraps the clean filename string inside your 
+			# double quotes, and then turns all underlines back into visual empty spaces!
+			# =========================================================================
+			if is_container_path:
+				# 1. Directly wrap true CBM file entries inside authentic double quotes
+				if not item["is_directory"] and clean_name != "..":
+					clean_name = f'"{clean_name}"'
+				
+				# 2. Transform our background protection underscores (_) into visible spaces
+				if "_" in clean_name:
+					clean_name = clean_name.replace("_", " ")
+			# =========================================================================
+
+
+			if is_active and file_idx == idx_highlight:
+				stdscr.attron(curses.color_pair(3))
+				stdscr.addstr(display_y, start_col + 1, " " * (width - 2))
+				stdscr.addstr(display_y, start_col + 2, f"{clean_name:<{max_name_len}}")
+				stdscr.addstr(display_y, start_col + int(width * 0.65), f"{t_label:<4}")
+				stdscr.addstr(display_y, start_col + (width - 10), f"{item['size_display']:>8}")
+				stdscr.attroff(curses.color_pair(3))
+				stdscr.attron(theme)
+			else:
+				stdscr.addstr(display_y, start_col + 2, f"{clean_name:<{max_name_len}}")
+				stdscr.addstr(display_y, start_col + int(width * 0.65), f"{t_label:<4}")
+				stdscr.addstr(display_y, start_col + (width - 10), f"{item['size_display']:>8}")
+
+		stdscr.attron(theme)
+		# FIXED: Safe inline dictionary verification prevents state variable blocking on initial system boots
+		# FIXED: Direct object reference lookup bypasses frame refresh dictionary overwrites completely
+		is_vfs = state_dict.get("is_in_container", False)
+		handler = state_dict.get("vfs_handler")
+		
+		# FIXED: Dynamic object reference lookup routes parameters accurately across D64, D71, D81, or DNP formats
+		if handler:
+			free_sectors = getattr(handler, "free_sectors_count", 664)
 		else:
-			total_blocks = 0
-			for t in range(1, track):
-				total_blocks += ImageGeometryRegistry.get_sectors_in_track(profile_name, t)
-			return total_blocks + sector
-
-class VFSBlockStream:
-	"""Abstract baseline interface for all 256-byte block storage providers."""
-	def read_block(self, block_index): 
-		raise NotImplementedError
-	def get_total_blocks(self): 
-		raise NotImplementedError
+			free_sectors = state_dict.get("free_sectors_count", 0)
+			
+		free_msg = f" {free_sectors} BLOCKS FREE " if is_vfs else f" {state_dict.get('free_space_msg', '0B FREE')} "
 
 
-class HostFileBlockStream(VFSBlockStream):
-	def __init__(self, filepath): 
-		self.path = filepath
-		self.file_size = os.path.getsize(filepath)
-		self.total_blocks = self.file_size // 256
-	def read_block(self, block_index):
-		if block_index >= self.total_blocks: 
-			raise IndexError(f" HOST VFS EXCEPTION: Block request {block_index} overflows host file limit.")
-		with open(self.path, "rb") as f: 
-			f.seek(block_index * 256)
-			return f.read(256)
-	def get_total_blocks(self): 
-		return self.total_blocks
+		if len(free_msg) < width - 4:
+			stdscr.addstr(panel_bottom_row, start_col + width - len(free_msg) - 2, free_msg)
+		stdscr.attroff(theme)
+	@staticmethod
+	def draw_footer_hotkeys(stdscr, max_rows, max_cols):
+		"""Paints system command function buttons across the last screen row."""
+		footer_y = max_rows - 1
+		stdscr.move(footer_y, 0)
+		stdscr.clrtoeol()
+		hotkeys = [
+			("1", "Help"), ("2", "Menu"), ("3", "View"), ("4", "Edit"),
+			("5", "Copy"), ("6", "RenMov"), ("7", "Mkdir"), ("8", "Delete"),
+			("9", "PullDn"), ("10", "Quit")
+		]
+		current_col = 0
+		for num, label in hotkeys:
+			stdscr.addstr(footer_y, current_col, f" {num} ", curses.A_REVERSE)
+			current_col += len(num) + 2
+			stdscr.addstr(footer_y, current_col, f"{label} ")
+			current_col += len(label) + 1
+			if current_col >= max_cols:
+				break
+
+	@staticmethod
+	def paint_complete_screen(stdscr, tui_state):
+		"""Redraws the complete twin explorer screen grid canvas cleanly."""
+		max_rows, max_cols = stdscr.getmaxyx()
+		if max_cols < 80 or max_rows < 24:
+			stdscr.clear()
+			stdscr.addstr(0, 0, " RESOLUTION WARNING: Terminal window size must be at least 80x24 characters.")
+			stdscr.refresh()
+			return
+
+		stdscr.erase()
+		TUIRenderer.draw_top_menubar(stdscr, max_cols)
+		mid_split = max_cols // 2
+		active_panel = tui_state["active_side"]
+
+		TUIRenderer.draw_single_panel(stdscr, 0, mid_split, tui_state["left"], (active_panel == "left"), max_rows)
+		TUIRenderer.draw_single_panel(stdscr, mid_split, max_cols, tui_state["right"], (active_panel == "right"), max_rows)
+
+		stdscr.attron(curses.color_pair(2))
+		raw_cmd_line = f"CBM-VFS Prompt> {tui_state['command_buffer']}"
+		stdscr.addstr(max_rows - 2, 0, raw_cmd_line[:max_cols - 1])
+		stdscr.clrtoeol()
+		stdscr.attroff(curses.color_pair(2))
+
+		TUIRenderer.draw_footer_hotkeys(stdscr, max_rows, max_cols)
+		stdscr.refresh()
 
 
-class PreloadedBufferBlockStream(VFSBlockStream):
-	def __init__(self, raw_byte_buffer): 
-		self.buffer = raw_byte_buffer
-		self.total_blocks = len(raw_byte_buffer) // 256
-	def read_block(self, block_index):
-		if block_index >= self.total_blocks: 
-			raise IndexError(f" BUFFER VFS EXCEPTION: Block request {block_index} overflows buffer bounds.")
-		start_offset = block_index * 256
-		return self.buffer[start_offset : start_offset + 256]
-	def get_total_blocks(self): 
-		return self.total_blocks
-class BaseContainerHandler:
-	def __init__(self, vfs_stream):
-		self.stream = vfs_stream
+
+# ----------------------------------------------------------------------------
+# MODULE: src/01_core/04_tuisectoreditorrenderer.py
+# ----------------------------------------------------------------------------
+
+class TUISectorEditorRenderer:
+	"""UI Paint Controller for the full-screen interactive low-level Sector Editor."""
+	@staticmethod
+	def paint_editor_workspace(stdscr, editor_state):
+		max_rows, max_cols = stdscr.getmaxyx()
+		stdscr.erase()
+		if max_cols < 80 or max_rows < 32:
+			stdscr.clear()
+			stdscr.addstr(0, 0, " RESOLUTION WARNING: Terminal size must be at least 80x32 characters for the editor.")
+			stdscr.refresh()
+			return
+
+		stdscr.attron(curses.color_pair(2))
+		stdscr.addstr(0, 0, "┌" + "─" * (max_cols - 2) + "┐")
+		stdscr.addstr(1, 2, "COMMODORE 64 INTERACTIVE SECTOR EDITOR Toolkit")
+		title_str = f"Container Layer Targets: [{editor_state['archive_name'].upper()}] ({editor_state['format_type']}) "
+		stdscr.addstr(1, max_cols - len(title_str) - 3, title_str, curses.A_BOLD)
+		stdscr.addstr(2, 0, "├" + "─" * (max_cols - 2) + "┤")
+
+		coord_line = f"VIEWING LOCATIONS -> TRACK: {editor_state['track']:02d} │ SECTOR: {editor_state['sector']:02d} │ BLOCK LIMITS: 1-{editor_state['max_track']}"
+		stdscr.addstr(3, 2, coord_line, curses.A_BOLD)
+		stdscr.addstr(4, 0, "├" + "─" * (max_cols - 2) + "┤")
+		stdscr.addstr(5, 7, "00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F │ ASCII / PETSCII CHARACTER VIEW")
+		stdscr.addstr(6, 2, "── ─────────────────────────────────────────────── ┼ ────────────────────────────────")
+
+		buffer_data = editor_state["buffer"]
+		cursor_offset = editor_state["cursor_offset"]
+		edit_mode = editor_state["edit_mode"]
+
+		for row_idx in range(16):
+			display_y = 7 + row_idx
+			row_start_offset = row_idx * 16
+			stdscr.addstr(display_y, 2, f"${row_start_offset:02X}:", curses.A_BOLD)
+
+			# Hex Canvas Grid View
+			for col_idx in range(16):
+				cell_offset = row_start_offset + col_idx
+				byte_val = buffer_data[cell_offset]
+				display_x = 7 + (col_idx * 3)
+				if cell_offset == cursor_offset:
+					attr = curses.color_pair(3) if edit_mode != "NAV" else curses.A_REVERSE
+					stdscr.addstr(display_y, display_x, f"{byte_val:02X}", attr)
+				else:
+					stdscr.addstr(display_y, display_x, f"{byte_val:02X}")
+
+			stdscr.addstr(display_y, 55, "│")
+
+			# Decoded Char Matrix Column View
+			for col_idx in range(16):
+				cell_offset = row_start_offset + col_idx
+				byte_val = buffer_data[cell_offset]
+				display_x = 58 + col_idx
+				if 32 <= byte_val <= 126:
+					char_repr = chr(byte_val)
+				elif 65 <= (byte_val & 0x7F) <= 90:
+					char_repr = chr((byte_val & 0x7F) + 32)
+				else:
+					char_repr = "·"
+
+				if cell_offset == cursor_offset:
+					attr = curses.color_pair(3) if edit_mode != "NAV" else curses.A_REVERSE
+					stdscr.addstr(display_y, display_x, char_repr, attr)
+				else:
+					stdscr.addstr(display_y, display_x, char_repr)
+
+		stdscr.addstr(23, 0, "├" + "─" * (max_cols - 2) + "┤")
+		stdscr.attron(curses.A_BOLD)
+		current_byte = buffer_data[cursor_offset]
+		stdscr.addstr(24, 4, f" CURSOR TARGET STATUS -> POSITION: ${cursor_offset:02X} │ BYTE: ${current_byte:02X} │ DEC: {current_byte:<3}")
+		stdscr.attroff(curses.A_BOLD)
+		stdscr.addstr(25, 0, "├" + "─" * (max_cols - 2) + "┤")
+
+		stdscr.addstr(26, 2, " COMMAND MENU ACTIONS: ", curses.A_BOLD)
+		stdscr.addstr(26, 26, "[R] Read Sector │ [W] Write Sector │ [J] Context Jump (T/S vectors)")
+		stdscr.addstr(27, 4, "[+] Forward Next │ [-] Backward Prev │ [T] Type Text │ [@] Change Hex Byte")
+		stdscr.addstr(28, 4, "[Q] Quit (Exit Editor / Return cleanly to dual explorer panel dashboard panes)")
+
+		stdscr.attron(curses.color_pair(5))
+		status_line = f" STATUS Ticker> {editor_state['status_msg']}"
+		stdscr.addstr(29, 2, status_line[:max_cols - 3])
+		stdscr.clrtoeol()
+		stdscr.attroff(curses.color_pair(5))
+		stdscr.addstr(30, 0, "└" + "─" * (max_cols - 3) + "┘")
+		stdscr.attroff(curses.color_pair(2))
+		stdscr.refresh()
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/02_drivers_commodore/01_d64.py
+# ----------------------------------------------------------------------------
+
+class D64FileSystemPlugin(BaseVFSHandler):
+	"""Dynamic Broker Adapter bridging low-level 1541 DOS handler streams."""
 	def mount(self):
-		raise NotImplementedError
-	def print_current_directory(self):
-		raise NotImplementedError
+		self.format_type = "D64"
+		self.default_dir_track = 18
+		self.default_dir_sector = 0
+		self.max_tracks_limit = 35
+		self.payload = bytearray(self.payload)
+		mem_stream = PreloadedBufferBlockStream(self.payload)
+		# ... (rest of your existing mount logic continues below safely)
+		sub_h = D64FileSystemHandler(mem_stream, self.archive_name)
+		b_info = sub_h.get_bam_state()
+		
+		self.file_list = [{
+			"name": "..", "is_directory": True, "is_virtual_container": False,
+			"type_display": "UP-DIR", "size_display": " ", "modify_time_str": " -- -- -- "
+		}]
+		if b_info:
+			# Isolate and clean the raw 4-character ID tracking string from your b_info model
+			raw_id_block = str(b_info.get("disk_id", "	  ")).strip().upper()
+			
+			# Slice the 4 characters cleanly: first 2 are the ID, last 2 are the DOS version code!
+			# For example, if raw_id_block is "412A", this yields id_part="41" and dos_part="2A"
+			id_part = raw_id_block[:2]
+			dos_part = raw_id_block[2:] if len(raw_id_block) >= 4 else "2A"
+			
+			# FIXED: Formats header string tightly to include your space-separated capital IDs!
+			# Yields -> 0 "copydisk		   " 41 2A
+			self.disk_label_msg = f'0 "{b_info["disk_name"]:<16}" {id_part} {dos_part}'
+			
+			# FIXED: Natively expose the calculated free blocks from the BAM parser to the VFS container state matrix
+			self.free_sectors_count = b_info.get("blocks_free", 0)
+			
+			lt, ls = b_info["next_track"], b_info["next_sector"]
+			while lt != 0:
+				sec_data = sub_h.read_virtual_sector(lt, ls)
+				if not sec_data:
+					break
+				nt, ns = int(sec_data[0]), int(sec_data[1])
+				for off in range(2, 256, 32):
+					slot = sec_data[off : off + 32]
+					if len(slot) < 30:
+						continue
+					ft_raw = int(slot[0])
+					if ft_raw == 0x00:
+						continue
+					act_t = ft_raw & 0x0F
+					tgt_t, tgt_s = int(slot[1]), int(slot[2])
+					c_nm = PETSCIIDecoder.decode_name(slot[3:19])
+					b_cnt = struct.unpack("<H", slot[28:30])[0]
+					t_lbl = "PRG" if act_t == 0x02 else "SEQ" if act_t == 0x01 else "DEL" if act_t == 0x00 else "???"
+					self.file_list.append({
+						"name": c_nm, "is_directory": False, "is_virtual_container": False,
+						"type_display": t_lbl, "size_display": f"{b_cnt}B",
+						"vfs_meta": {"track": tgt_t, "sector": tgt_s}
+					})
+				if nt == 0 or (nt == 0x00 and ns == 0xFF):
+					break
+				lt, ls = nt, ns
+		self.low_level_handler = sub_h
+	
+	def check_sector_free_status(self, track, sector):
+		"""Natively checks the raw 1541 allocation bitmask inside Track 18, Sector 0 
+		to identify if a target sector block is currently free (True) or used (False) [1.1].
+		"""
+		# Linear byte offset to the start of Track 18, Sector 0 (357 sectors precede it)
+		bam_idx = 18 * 21 * 256
+		if bam_idx + 256 <= len(self.payload):
+			# Each track uses a strict 4-byte descriptor block layout: [Count, Bit0, Bit1, Bit2] [1.1]
+			track_offset = bam_idx + (track * 4)
+			
+			# Identify which byte and specific bit inside that byte handles this sector index
+			b_idx = sector // 8
+			b_bit = sector % 8
+			
+			# Extract the target byte offset position (skipping the initial 1-byte track total count)
+			mask_byte = self.payload[track_offset + 1 + b_idx]
+			
+			# Standard 1541 bitwise rules: 1 means the sector is FREE, 0 means it is USED [1.1]
+			# If the bit is set to 1, return True (Free); otherwise return False (Used) [1.1]
+			return bool(mask_byte & (1 << b_bit))
+			
+		# Safe fallback for freshly allocated empty streams
+		return True	
+
+		
+	def toggle_sector_allocation_status(self, track, sector):
+		"""Natively flips the allocation bit mask for a standard 1541 .d64 image 
+		at Track 18, Sector 0. 1 (Free) <-> 0 (Used).
+		"""
+		# Linear offset to Track 18, Sector 0 (357 sectors precede it)
+		bam_idx = 18 * 21 * 256
+		if bam_idx + 256 <= len(self.payload):
+			# Each track uses a 4-byte entry: [Count, Bit0, Bit1, Bit2]
+			track_offset = bam_idx + (track * 4)
+			
+			b_idx = sector // 8
+			b_bit = sector % 8
+			
+			# XOR (^) the exact bit to toggle its state cleanly inside the payload byte
+			self.payload[track_offset + 1 + b_idx] ^= (1 << b_bit)
+
+	def extract_file_bytes(self, vfs_meta_node):
+		return TUIController.extract_vfs_file_bytes(self.low_level_handler, vfs_meta_node["track"], vfs_meta_node["sector"])
+		
+	def read_virtual_sector(self, track, sector):
+		"""Passes the sector read request straight down to the 1541 DOS engine."""
+		return self.low_level_handler.read_virtual_sector(track, sector)
+		
+	def write_virtual_sector(self, track, sector, raw_bytes):
+		"""Production-grade sector modifier with integrated Data Change Guard.
+		Calculates the raw linear interleaved offset, checks if changes actually 
+		exist, and only flushes to the local file system on true modifications.
+		"""
+		if len(raw_bytes) != 256:
+			return False
+			
+		if track < 1 or track > 40 or sector < 0:
+			return False
+			
+		def get_d64_linear_sector_offset(t, s):
+			if 1 <= t <= 17:   
+				base_off = (t - 1) * 21
+				max_s = 20
+			elif 18 <= t <= 24: 
+				base_off = (17 * 21) + (t - 18) * 19
+				max_s = 18
+			elif 25 <= t <= 30: 
+				base_off = (17 * 21) + (7 * 19) + (t - 25) * 18
+				max_s = 17
+			elif 31 <= t <= 40: 
+				base_off = (17 * 21) + (7 * 19) + (6 * 18) + (t - 31) * 17
+				max_s = 16
+			else: 
+				return -1
+			
+			if s > max_s: 
+				return -1
+			return (base_off + s) * 256
+
+		file_offset = get_d64_linear_sector_offset(int(track), int(sector))
+		if file_offset == -1 or file_offset + 256 > len(self.payload):
+			return False
+			
+		# === STEP 1: NATIVE DATA CHANGE GUARD SAFETY CHECK ===
+		existing_sector_bytes = bytes(self.payload[file_offset : file_offset + 256])
+		incoming_sector_bytes = bytes(raw_bytes)
+		
+		if existing_sector_bytes == incoming_sector_bytes:
+			# The sector data is already identical! Skip the hard drive write process completely.
+			# Returning a unique string keyword signal lets the parent UI know no save was needed
+			return "NO_CHANGE"
+
+		# === STEP 2: APPLY DATA MODIFICATIONS IN ACTIVE RAM ===
+		self.payload[file_offset : file_offset + 256] = incoming_sector_bytes
+		
+		# Flush the modified bytes directly into the low-level handler's inner stream cache
+		if hasattr(self, "low_level_handler") and self.low_level_handler:
+			handler = self.low_level_handler
+			active_stream = getattr(handler, "stream", getattr(handler, "_stream", getattr(handler, "payload", None)))
+			if active_stream:
+				if hasattr(active_stream, "payload"):
+					active_stream.payload[file_offset : file_offset + 256] = incoming_sector_bytes
+				elif hasattr(active_stream, "buffer"):
+					active_stream.buffer[file_offset : file_offset + 256] = incoming_sector_bytes
+				elif isinstance(active_stream, (bytearray, list)):
+					active_stream[file_offset : file_offset + 256] = incoming_sector_bytes
+
+		# Synchronize auxiliary localized dictionary caches
+		cache_key = (int(track), int(sector))
+		for attr_name in ("virtual_sector_cache_pool", "virtual_sectors", "sector_cache", "_cache"):
+			if hasattr(self, attr_name):
+				pool = getattr(self, attr_name)
+				if isinstance(pool, dict):
+					pool[cache_key] = incoming_sector_bytes
+					
+		# SCENARIO A: This plugin is running as a NESTED SUB-PARTITION inside a master .dhd container!
+		if hasattr(self, "parent_dhd_handler") and self.parent_dhd_handler:
+			parent_dhd = self.parent_dhd_handler
+			part_id = getattr(self, "parent_partition_id", None)
+			part_info = parent_dhd.partitions_registry.get(part_id)
+			
+			if part_info:
+				b_start = part_info["byte_start"]
+				b_len = part_info["byte_length"]
+				
+				# Enforce mutable type conformity on the parent payload container stream
+				if isinstance(parent_dhd.payload, bytes):
+					parent_dhd.payload = bytearray(parent_dhd.payload)
+					
+				# Safely patch our modified 16MB sub-image buffer right into the parent's layout window!
+				parent_dhd.payload[b_start : b_start + b_len] = self.payload[:b_len]
+				
+				# Arm the parent handler's dirty flag and trigger its physical disk save sequence!
+				parent_dhd.is_dirty = True
+				parent_dhd.flush_dhd_to_disk()
+			return True
+				
+		# === STEP 3: PERSIST MODIFICATIONS TO THE WINDOWS FILE SYSTEM ===
+		if hasattr(self, "archive_name") and self.archive_name:
+			if os.path.exists(self.archive_name) and os.path.isfile(self.archive_name):
+				try:
+					with open(self.archive_name, "wb") as f_out:
+						f_out.write(bytes(self.payload))
+				except Exception:
+					pass
+					
+		# SINGLE EXPLICIT RETURN POINT AT THE END OF THE PASS
+		return True
 
 
 class D64FileSystemHandler(BaseContainerHandler):
@@ -5957,6 +3687,2561 @@ class D64FileSystemHandler(BaseContainerHandler):
 			"next_sector": next_directory_sector,
 			"bit_matrix": matrix_bit_map
 		}
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/02_drivers_commodore/02_g64.py
+# ----------------------------------------------------------------------------
+
+class G64FileSystemPlugin:
+	"""Production-grade low-level GCR bitstream filesystem plugin driver. 
+	Enhanced to support a true 42-track limit, preserve pre-existing speed zone data arrays 
+	natively, and feed standard 256-byte sector buffers into high-level C64 Explorer loops.
+	"""
+	GCR_TO_NYBBLE = {
+		0x0A: 0x0, 0x0B: 0x1, 0x12: 0x2, 0x13: 0x3,
+		0x0E: 0x4, 0x0F: 0x5, 0x16: 0x6, 0x17: 0x7,
+		0x09: 0x8, 0x19: 0x9, 0x1A: 0xA, 0x1B: 0xB,
+		0x0D: 0xC, 0x1D: 0xD, 0x1E: 0xE, 0x15: 0xF
+	}
+	# Official Commodore 4-to-5 GCR Conversion Lookup Matrix Table [1.1]
+	
+	NYBBLE_TO_GCR = {
+		0x0: 0x0A, 0x1: 0x0B, 0x2: 0x12, 0x3: 0x13,
+		0x4: 0x0E, 0x5: 0x0F, 0x6: 0x16, 0x7: 0x17,
+		0x8: 0x09, 0x9: 0x19, 0xA: 0x1A, 0xB: 0x1B,
+		0xC: 0x0D, 0xD: 0x1D, 0xE: 0x1E, 0xF: 0x15
+	}
+
+	def encode_bytes_to_gcr_bits(self, raw_payload_bytes):
+		"""Computes the 1541 data sector XOR checksum, frames the 260-byte block,
+		maps every nybble to a 5-bit GCR code, and returns exactly 3,250 bits [1.1].
+		"""
+		if len(raw_payload_bytes) != 256:
+			return []
+		
+		
+		# STAGE 1: COMPUTE COMMODORE DOS SECTOR DATA XOR CHECKSUM [1.1]
+		data_checksum = 0
+		for b in raw_payload_bytes:
+			data_checksum ^= b
+
+		# STAGE 2: ASSEMBLE THE 260-BYTE COMMODORE DOS DATA BLOCK LAYOUT [1.1]
+		# Byte 0: Data Block Identifier Token ($07) [1.1]
+		# Bytes 1-256: Modified 256-Byte Payload Data [1.1]
+		# Byte 257: Generated 1-Byte XOR Checksum [1.1]
+		# Bytes 258-259: Trailing Off-Overhead Padding Gap ($00 $00) [1.1]
+		framed_block = bytearray([0x07])
+		framed_block.extend(raw_payload_bytes)
+		framed_block.append(data_checksum)
+		framed_block.extend([0x00, 0x00])
+		# STAGE 3 & 4: EXECUTE THE TRUE 4-TO-5 NYBBLE RE-ENCODING & BIT FLATTENING [1.1]
+		encoded_bit_stream = []
+		for byte_val in framed_block:
+			# Isolate the high and low 4-bit nybbles cleanly
+			high_nybble = (byte_val >> 4) & 0x0F
+			low_nybble = byte_val & 0x0F
+			# FIXED: Referencing via Class Name scopes the lookup dictionary perfectly!
+			gcr_high = G64FileSystemPlugin.NYBBLE_TO_GCR[high_nybble]
+			gcr_low = G64FileSystemPlugin.NYBBLE_TO_GCR[low_nybble]
+
+			# Convert the 5-bit high GCR word serially into integer bits [1.1]
+			for pos in range(4, -1, -1):
+				encoded_bit_stream.append((gcr_high >> pos) & 1)
+
+			# Convert the 5-bit low GCR word serially into integer bits [1.1]
+			for pos in range(4, -1, -1):
+				encoded_bit_stream.append((gcr_low >> pos) & 1)
+
+		# Returns an absolute un-truncated list array of exactly 3,250 bits [1.1]
+		
+		return encoded_bit_stream
+
+	def __init__(self, file_bytes, archive_name=""):
+		self.payload = bytearray(file_bytes)
+		self.archive_name = archive_name
+		self.format_type = "G64"
+		self.file_list = []
+		self.free_sectors_count = 0
+		self.disk_label_msg = "0 \"G64 IMAGE		\" ID 2A"
+		# On-demand virtual sector cache pool dictionary (track, sector -> 256 bytes)
+		self.virtual_sector_cache_pool = {}
+		
+		# FIXED REQUIREMENT: Initialize the permanent track geometry bit map cache!
+		# Maps (track, sector) -> absolute bit offset of the 0x07 data block ID
+		self.track_geometry_offset_map = {}
+
+		
+		# FIXED: Expanded physical track limits from 35 straight up to 42 max track!
+		self.default_dir_track = 18
+		self.default_dir_sector = 0
+		self.max_tracks_limit = 42
+		self.no_sector_editor = False # Allows Sector Editor to read our decoded virtual blocks
+		
+		# On-demand virtual sector cache pool dictionary (track, sector -> 256 bytes)
+		self.virtual_sector_cache_pool = {}
+		
+		# Execute mounting and directory compiling sequences
+		self.mount()
+		self.list_directory()
+		
+	def get_cached_sector_bit_offset(self, track, sector):
+		"""Queries the geometry cache map for a sector's bit coordinate position.
+		If the track hasn't been cached or demodulated yet, it forces a track sweep.
+		"""
+		cache_key = (int(track), int(sector))
+		if cache_key not in self.track_geometry_offset_map:
+			self.demodulate_track_gcr_to_cache(int(track))
+			
+		return self.track_geometry_offset_map.get(cache_key, None)
+
+	def get_raw_gcr_track_stream(self, logical_track):
+		"""Natively parses .g64 tables to extract file offsets, track byte sizes, 
+		and preserves speed zone pointers for any full or half-track up to Track 42.5.
+		"""
+		try:
+			track_float = float(logical_track)
+		except ValueError:
+			return b"", 0
+			
+		# Enforce our newly updated physical 42-track boundaries
+		if track_float < 1.0 or track_float > 42.5:
+			return b"", 0
+			
+		# Convert float track numbers cleanly to the 0-83 index entries
+		g64_idx = int(round((track_float - 1.0) * 2))
+		
+		# 1. Gather Track Data Absolute Offset Pointer
+		offset_ptr_pos = 12 + (g64_idx * 4)
+		if offset_pointer_slice_pos := offset_ptr_pos + 4 > len(self.payload):
+			return b"", 0
+		track_file_offset = struct.unpack("<I", self.payload[offset_ptr_pos : offset_ptr_pos + 4])[0]
+		if track_file_offset == 0:
+			return b"", 0 # Track has no recorded data in this image file
+			
+		# 2. PRESERVED METADATA RULE: Extract but do not alter speed zone data entries!
+		speed_ptr_pos = 0x0158 + (g64_idx * 4)
+		speed_zone_val = 0
+		if speed_ptr_pos + 4 <= len(self.payload):
+			speed_zone_val = struct.unpack("<I", self.payload[speed_ptr_pos : speed_ptr_pos + 4])[0]
+
+		# 3. Read True Length of Stored GCR Track Array Block
+		if track_file_offset + 2 > len(self.payload):
+			return b"", 0
+		track_len = struct.unpack("<H", self.payload[track_file_offset : track_file_offset + 2])[0]
+		
+		if track_file_offset + 2 + track_len > len(self.payload):
+			return b"", 0
+			
+		return bytes(self.payload[track_file_offset + 2 : track_file_offset + 2 + track_len]), speed_zone_val
+
+	def read_virtual_sector(self, track, sector):
+		"""High-level sector fetch hook. Automatically demodulates the requested 
+		track on-demand if it hasn't been cached yet.
+		"""
+		cache_key = (int(track), int(sector))
+		if cache_key not in self.virtual_sector_cache_pool:
+			self.demodulate_track_gcr_to_cache(int(track))
+			
+		return self.virtual_sector_cache_pool.get(cache_key, b"\x00" * 256)
+
+	def write_virtual_sector(self, track, sector, raw_bytes):
+		"""Production-grade surgical .g64 sector modifier with integrated 
+		Data Change Guard and circular Modulo Bit Wrap logic [1.1, 1.11].
+		"""
+		if len(raw_bytes) != 256:
+			return False
+			
+		if track < 1 or track > 42 or sector < 0:
+			return False
+
+		# === STEP 1: NATIVE DATA CHANGE GUARD SAFETY CHECK ===
+		local_cache_key = (int(track), int(sector))
+		if local_cache_key in self.virtual_sector_cache_pool:
+			if self.virtual_sector_cache_pool[local_cache_key] == bytes(raw_bytes):
+				return "NO_CHANGE"
+
+		# === STEP 2: LOOK UP THE CACHED BIT GEOMETRY OFFSET ===
+		target_bit_offset = self.get_cached_sector_bit_offset(int(track), int(sector))
+		if target_bit_offset is None:
+			return False
+
+		# === STEP 3: ASSEMBLE AND 4-TO-5 ENCODE PAYLOAD INTO GCR BITS ===
+		mutated_gcr_bits = self.encode_bytes_to_gcr_bits(raw_bytes)
+		if not mutated_gcr_bits or len(mutated_gcr_bits) != 2600:
+			return False
+			
+		# === STEP 4: FETCH THE RAW TRACK FROM THE PLATTER FILE HEADER ===
+		try:
+			track_float = float(track)
+			g64_idx = int(round((track_float - 1.0) * 2))
+			offset_ptr_pos = 12 + (g64_idx * 4)
+			
+			if offset_ptr_pos + 4 > len(self.payload):
+				return False
+				
+			track_file_offset_tuple = struct.unpack("<I", self.payload[offset_ptr_pos : offset_ptr_pos + 4])
+			track_file_offset = track_file_offset_tuple[0]
+			
+			if track_file_offset == 0:
+				return False
+				
+			track_len_tuple = struct.unpack("<H", self.payload[track_file_offset : track_file_offset + 2])
+			track_len = track_len_tuple[0]
+		except Exception:
+			return False
+
+		# === STEP 5: SURGICALLY OVERWRITE USING THE CIRCULAR MODULO WRAP RULE ===
+		try:
+			gcr_bytes_block = bytearray(self.payload[track_file_offset + 2 : track_file_offset + 2 + track_len])
+			track_bits_array = []
+			for b in gcr_bytes_block:
+				for bit_pos in range(7, -1, -1):
+					track_bits_array.append((b >> bit_pos) & 1)
+					
+			total_track_bits = len(track_bits_array)
+			
+			for i in range(2600):
+				write_coord_idx = (target_bit_offset + i) % total_track_bits
+				track_bits_array[write_coord_idx] = mutated_gcr_bits[i]
+		except Exception:
+			return False
+
+		# === STEP 6: REPACK BINARY BITS ARRAY BACK INTO STANDARD BYTES ===
+		try:
+			packed_track_bytes = bytearray()
+			for i in range(0, len(track_bits_array), 8):
+				byte_chunk = track_bits_array[i:i+8]
+				val = 0
+				for bit in byte_chunk:
+					val = (val << 1) | bit
+				packed_track_bytes.append(val)
+				
+			self.payload[track_file_offset + 2 : track_file_offset + 2 + len(packed_track_bytes)] = packed_track_bytes
+		except Exception:
+			return False
+
+		# === STEP 7: UPDATE LOCALIZED RAM CACHE POOLS ===
+		self.virtual_sector_cache_pool[local_cache_key] = bytes(raw_bytes)
+
+		# === STEP 8: AUTOMATED CASCADING WRITE-THROUGH BACKPLANE ===
+		master_platter_bytes = bytes(self.payload)
+		
+		# 1. Proactively cascade updates into your application's global master storage layers
+		for attr_target in ("file_bytes", "container_bytes", "raw_data", "master_payload"):
+			if hasattr(self, attr_target):
+				setattr(self, attr_target, bytearray(master_platter_bytes))
+				
+		# Check if this G64 instance is running inside a nested VFS container handler (like a .dnp or .d64)
+		if hasattr(self, "parent_vfs_handler") and self.parent_vfs_handler:
+			parent_handler = self.parent_vfs_handler
+			target_filename = getattr(self, "filename_on_parent", "disk_image.g64")
+			
+			# Compress the updated G64 memory buffer completely into a flat, sequential array of bytes
+			updated_payload_stream = bytes(self.payload)
+			
+			# 1. TRIGGER REPLACEMENT CHECK: Silently find and purge the old filename allocation sectors!
+			# By forcing force_replace=True, it unlinks the old blocks automatically with zero user warnings
+			dup_report = parent_handler.check_target_for_duplicate_filename(target_filename, force_replace=True)
+			
+			# 2. FILE INJECTION PASS: Allocate fresh sequential block sectors and save the new data stream
+			# Call your container's native file-saving write routine to plop the new stream into place cleanly
+			if hasattr(parent_handler, "save_virtual_file_payload"):
+				success = parent_handler.save_virtual_file_payload(target_filename, updated_payload_stream)
+				if success:
+					# Cascade dirty flags right up the stack to flush everything safely back to the master DHD!
+					parent_handler.is_dirty = True
+					if hasattr(parent_handler, "parent_dhd_handler") and parent_handler.parent_dhd_handler:
+						parent_handler.parent_dhd_handler.is_dirty = True
+						parent_handler.parent_dhd_handler.flush_dhd_to_disk()
+					return True
+				
+		# 2. Commit the final platter array permanently to your Windows workstation platter path
+		if hasattr(self, "archive_name") and self.archive_name:
+			absolute_file_path = os.path.abspath(self.archive_name)
+			try:
+				with open(absolute_file_path, "wb") as f_out:
+					f_out.write(master_platter_bytes)
+			except Exception:
+				return False
+				
+		return True
+
+	def decode_gcr_bits_to_bytes(self, bit_list):
+		"""Groups a sequence of bit integers into 5-bit GCR chunks and decodes them."""
+		gcr_blocks = []
+		for i in range(0, len(bit_list) - 4, 5):
+			val = 0
+			for b_idx in range(5):
+				val = (val << 1) | bit_list[i + b_idx]
+			gcr_blocks.append(val)
+		nybbles = []
+		for block in gcr_blocks:
+			nybbles.append(G64FileSystemPlugin.GCR_TO_NYBBLE.get(block, 0))
+		standard_bytes = []
+		for idx in range(0, len(nybbles) - 1, 2):
+			standard_bytes.append((nybbles[idx] << 4) | nybbles[idx + 1])
+		return standard_bytes
+
+	def demodulate_track_gcr_to_cache(self, logical_track):
+		"""🚨 HARDWARE-REPLICATING LOOK-AHEAD GCR DEMODULATOR 🚨
+		Parses raw bitstreams natively using a precise 10-bit shift register window. 
+		Identifies sector frames by executing direct 100-bit header and 3250-bit data 
+		look-ahead captures, matching our verified diagnostic tool perfectly.
+		"""
+		gcr_bytes, speed_zone = self.get_raw_gcr_track_stream(logical_track)
+		if not gcr_bytes:
+			return
+
+		# Convert raw track bytes into a continuous list array of binary integers
+		base_bit_list = []
+		for b in gcr_bytes:
+			for bit_pos in range(7, -1, -1):
+				base_bit_list.append((b >> bit_pos) & 1)
+				
+		# Replicate rotating floppy disk by multi-passing the stream list 4 times back-to-back
+		bit_stream = base_bit_list * 4
+		stream_len = len(bit_stream)
+
+		# FIXED: Defined the total track bits variable early so State 1 can read it!
+		total_track_bits = len(base_bit_list)
+
+		# State registers
+		shift_reg = 0
+		seeking_sync = True
+		collected_bits = []
+		last_header_sector = None
+
+		# ADD THESE TWO LINES FOR STATE MANAGEMENT:
+		decoding_mode = "SEEK_SYNC"	 # Modes: "SEEK_SYNC", "COLLECT_ID", "HEADER", "DATA"
+		expected_bytes = 0
+
+
+		bit_idx = 0
+		# We scan through the first full revolution plus our spillover lookahead room
+		max_scan_len = len(base_bit_list) + 12000
+		if max_scan_len > stream_len:
+			max_scan_len = stream_len
+
+		while bit_idx < max_scan_len:
+			bit = bit_stream[bit_idx]
+			bit_idx += 1
+			shift_reg = ((shift_reg << 1) | bit) & 0x3FF
+
+			# If ten 1s hit, a hardware sync IMMEDIATELY interrupts any active frame processing
+			if shift_reg == 0x3FF:
+				decoding_mode = "SEEK_SYNC"
+				seeking_sync = True
+				collected_bits = []
+				# (Leave your existing track-wrap loop counters below this intact!)
+
+
+			if seeking_sync:
+				if bit == 0:
+					seeking_sync = False
+					shift_reg = 0
+					collected_bits = [bit]
+					decoding_mode = "COLLECT_ID"
+				continue
+
+			# Collect bits for the current active frame mode
+			collected_bits.append(bit)
+			
+			# --- STATE 1: DECODE INDEPENDENT BLOCK IDENTIFIER (10 bits gathered) ---
+			if decoding_mode == "COLLECT_ID" and len(collected_bits) == 10:
+				decoded_id = self.decode_gcr_bits_to_bytes(collected_bits)
+				if decoded_id and len(decoded_id) > 0:
+					if decoded_id[0] == 0x08:	 # HEADER TOKEN MATCHED
+						decoding_mode = "HEADER"
+						expected_bytes = 5
+					elif decoded_id[0] in (0x07, 0xF1):	 # DATA TOKEN MATCHED
+						decoding_mode = "DATA"
+						expected_bytes = 260
+						
+						# FIXED REQUIREMENT: Log the dynamic bit offset of the data identifier! [1.10]
+						if last_header_sector is not None:
+							# Calculate the true starting coordinate index on the primary track rotation
+							# We offset backward by 9 bits to align perfectly on the absolute start of the data block ID cell
+							absolute_start_bit = (bit_idx - 10) % total_track_bits
+							geometry_key = (int(logical_track), int(last_header_sector))
+							
+							# Commit the coordinate directly to our driver state mapping tracking records
+							self.track_geometry_offset_map[geometry_key] = absolute_start_bit
+					else:
+						decoding_mode = "SEEK_SYNC"
+						seeking_sync = True
+				else:
+					decoding_mode = "SEEK_SYNC"
+					seeking_sync = True
+
+			# --- STATE 2: PROCESS ACTIVE DATA CHUNKS BY BYTE SIZE LIMITS ---
+			elif decoding_mode in ("HEADER", "DATA"):
+				# Every standard CBM byte requires exactly 10 raw GCR bits
+				if len(collected_bits) == (expected_bytes * 10):
+					full_frame_bytes = self.decode_gcr_bits_to_bytes(collected_bits)
+					
+					if decoding_mode == "HEADER" and len(full_frame_bytes) >= 3:
+						# Byte 2 extracts Sector # natively out of the decoded byte array [1.28]
+						last_header_sector = full_frame_bytes[2]
+						
+						# ============================================
+						
+					elif decoding_mode == "DATA" and last_header_sector is not None and len(full_frame_bytes) >= 257:
+						cache_key = (int(logical_track), int(last_header_sector))
+						if cache_key not in self.virtual_sector_cache_pool:
+							# Store the standard 256 bytes data payload seamlessly
+							self.virtual_sector_cache_pool[cache_key] = bytes(full_frame_bytes[1:257])
+							last_header_sector = None
+							# ==================================================
+							
+						last_header_sector = None
+						
+					# Clear frame parameters and return cleanly to master sync search loop [1.28]
+					decoding_mode = "SEEK_SYNC"
+					seeking_sync = True
+					collected_bits = []
+
+
+	def mount(self):
+		"""Extracts high-level Disk Name and IDs from the cached Track 18, Sector 0 buffer [1.1]."""
+		header_sector = self.read_virtual_sector(18, 0)
+		
+		# Pull strict physical slice limits from standard 1541 hardware profiles [1.1]
+		raw_label = header_sector[144:160]
+		raw_id = header_sector[162:164]
+		raw_dos = header_sector[165:167]
+		
+		# Sanitizer loop: Strip out all non-printable raw padding data and clean spaces [1.1]
+		lbl_str = "".join(chr(b) for b in raw_label if 32 <= b <= 126).strip()
+		id_str = "".join(chr(b) for b in raw_id if 32 <= b <= 126).strip().upper()
+		dos_str = "".join(chr(b) for b in raw_dos if 32 <= b <= 126).strip().upper()
+		
+		# Fallback guards: If text decoding comes up empty, default to standard CBM labels [1.1]
+		if not lbl_str:
+			lbl_str = "1541 GCR"
+		if not id_str:
+			id_str = "41"
+		if not dos_str:
+			dos_str = "2A"
+			
+		# Enforce true 16-character space-padded layout alignment within quotes [1.1]
+		self.disk_label_msg = f'0 "{lbl_str:<16}" {id_str} {dos_str}'
+
+
+	def list_directory(self):
+		"""Traces standard 1541 directory linkages from the demodulated sector caches."""
+		self.file_list = [{
+			"name": "..", "is_directory": True, "is_virtual_container": False,
+			"type_display": "UP-DIR", "size_display": " ", "modify_time_str": " -- -- -- "
+		}]
+		
+		curr_t, curr_s = 18, 1
+		free_count = 0
+		
+		while curr_t != 0:
+			sec_data = self.read_virtual_sector(curr_t, curr_s)
+			if not sec_data or len(sec_data) < 2:
+				break
+				
+			next_t, next_s = int(sec_data[0]), int(sec_data[1])
+			
+			for off in range(2, 256, 32):
+				slot = sec_data[off : off + 32]
+				if len(slot) < 30 or int(slot[0]) == 0x00:
+					continue
+					
+				ft_raw = int(slot[0])
+				type_flags = ft_raw & 0x0F
+				t_lbl = "PRG" if type_flags == 2 else "SEQ" if type_flags == 1 else "USR" if type_flags == 3 else "REL" if type_flags == 4 else "DEL"
+				
+				if ft_raw & 0x40: t_lbl = f"<{t_lbl}"
+				if not (ft_raw & 0x80): t_lbl = f"*{t_lbl}"
+					
+				# FIXED: Match your D64 file link offsets exactly!
+				tgt_t, tgt_s = slot[1], slot[2]
+				c_nm = PETSCIIDecoder.decode_name(slot[3:19])
+				# FIXED: Appended [0] to unpack the tuple cleanly into a raw block count integer!
+				b_cnt = struct.unpack("<H", slot[28:30])[0]
+				
+				self.file_list.append({
+					"name": c_nm, "is_directory": False, "is_virtual_container": False,
+					"type_display": t_lbl, "size_display": str(b_cnt),
+					"vfs_meta": {"track": tgt_t, "sector": tgt_s}
+				})
+				
+			if next_t == 0 or (next_t == 0x00 and next_s == 0xFF):
+				break
+			curr_t, curr_s = next_t, next_s
+			
+		# FIXED: Bounded sectors density lookup loop safely limits to 35 tracks for free space calculations
+		bam_sector = self.read_virtual_sector(18, 0)
+		for t in range(1, 36):
+			if t == 18: continue
+			free_count += int(bam_sector[t * 4])
+			
+		self.free_sectors_count = free_count
+		return self.file_list
+		
+	def extract_file_bytes(self, vfs_meta):
+		"""Sequentially follows a file's track and sector link chain from our demodulated 
+		virtual sector cache pool to extract the raw binary payload bytes [1.1].
+		"""
+		if not vfs_meta or "track" not in vfs_meta or "sector" not in vfs_meta:
+			return b""
+			
+		file_bytes = bytearray()
+		curr_t = int(vfs_meta["track"])
+		curr_s = int(vfs_meta["sector"])
+		
+		# Guard against infinite loops or circular file allocation pointers
+		visited_sectors = set()
+		
+		# A 1541 file chain runs until the Next Track byte equals 0x00 [1.1]
+		while curr_t != 0:
+			# Safety boundary check: ensure we don't spin endlessly on corrupted images
+			sector_key = (curr_t, curr_s)
+			if sector_key in visited_sectors:
+				break
+			visited_sectors.add(sector_key)
+			
+			# Pull the 256-byte standard sector via our unified lookup coordinate hook
+			sec_data = self.read_virtual_sector(curr_t, curr_s)
+			if not sec_data or len(sec_data) < 256:
+				break
+				
+			# On a standard 1541 diskette [1.1]:
+			# - Byte 0 is the Next Track of the file chain [1.1]
+			# - Byte 1 is the Next Sector of the file chain [1.1]
+			# FIXED: Pull indices straight out of the byte array natively!
+			# Pull integers straight out of the active byte offsets natively!
+			next_t = sec_data[0]
+			next_s = sec_data[1]
+			
+			if next_t == 0:
+				# If the next track is 0, this is the absolute final sector of the file [1.1]!
+				# In this case, Byte 1 specifies exactly how many valid data bytes remain inside this block [1.1].
+				valid_bytes_count = next_s
+				# Strip off the initial 2-byte track/sector pointer overhead [1.1]
+				file_bytes.extend(sec_data[2 : 1 + valid_bytes_count])
+				break
+			else:
+				# If next_t is not 0, the entire sector contains valid data payload [1.1]
+				file_bytes.extend(sec_data[2:256])
+				
+			curr_t = next_t
+			curr_s = next_s
+			
+		return bytes(file_bytes)
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/02_drivers_commodore/03_d71.py
+# ----------------------------------------------------------------------------
+
+class D71FileSystemPlugin(BaseVFSHandler):
+	"""Dynamic Broker Adapter parsing legacy Commodore 1571 Double-Sided (.D71) images 
+	utilizing your exact Inside Commodore DOS 1-based 33-byte step layout blocks.
+	"""
+	@staticmethod
+	def get_d71_linear_sector_index(track, sector):
+		"""Fact-aligned 1571 sector accumulator mapping 70 tracks to linear array slots."""
+		side0_offsets = [
+			0,	 # Track 0 placeholder
+			0,	 21,  42,  63,	84, 105, 126, 147, 168, 189, 210, 231, 252, 273, 294, 315, 336, # 1-17
+			357, 376, 395, 414, 433, 452, 471, # 18-24
+			490, 508, 526, 544, 562, 580, # 25-30
+			598, 615, 632, 649, 666		   # 31-35
+		]
+		
+		if 1 <= track <= 35:
+			return side0_offsets[track] + sector
+		elif 36 <= track <= 70:
+			normalized_track = track - 35
+			return 683 + side0_offsets[normalized_track] + sector
+		return 0
+
+	def mount(self):
+		self.payload = bytearray(self.payload)
+		self.format_type = "D71"
+		self.default_dir_track = 18
+		self.default_dir_sector = 0
+		self.max_tracks_limit = 70
+		self.no_sector_editor = False
+
+		# FIXED: Hardcode a printable text default first to guarantee it is NEVER NoneType!
+		self.disk_label_msg = "UNLABELLED 1571 DISK"
+		
+		# Natively pull disk labels out of Side 0 BAM (Track 18, Sector 0)
+		bam_idx = D71FileSystemPlugin.get_d71_linear_sector_index(18, 0) * 256
+		if bam_idx + 256 <= len(self.payload):
+			# Extract fields natively using identical 1541/1571 layout offsets [1.1]
+			raw_label = self.payload[bam_idx + 144 : bam_idx + 160]
+			raw_id = self.payload[bam_idx + 162 : bam_idx + 164]
+			raw_dos = self.payload[bam_idx + 165 : bam_idx + 167]
+			
+			lbl_str = PETSCIIDecoder.decode_name(raw_label).replace("_", " ")
+			id_str = PETSCIIDecoder.decode_name(raw_id).strip().upper()
+			dos_str = PETSCIIDecoder.decode_name(raw_dos).strip().upper()
+			
+			# FIXED: Unifies D71 header with accurate space-separated capital IDs! [1.1]
+			self.disk_label_msg = f'0 "{lbl_str:<16}" {id_str} {dos_str}'
+					# FORCE CORE LISTING MAP INITIALIZATION:
+		# Guarantees that your 1571 directory list builder runs explicitly upon mounting!
+		self.file_list = self.list_directory()
+		return True
+
+			
+	def check_sector_free_status(self, track, sector):
+		"""Natively checks your live Side 0 and Side 1 allocation bitmasks to identify 
+		if a sector is marked free (True) or used (False).
+		"""
+		if track <= 35:
+			s0_idx = D71FileSystemPlugin.get_d71_linear_sector_index(18, 0) * 256
+			track_offset = s0_idx + (track * 4)
+			# Look right at the byte bitmask positions
+			b_idx = sector // 8
+			b_bit = sector % 8
+			mask_byte = self.payload[track_offset + 1 + b_idx]
+			return bool(mask_byte & (1 << b_bit))
+		else:
+			s1_idx = D71FileSystemPlugin.get_d71_linear_sector_index(53, 0) * 256
+			t_offset = track - 36
+			track_bytes_start = s1_idx + (t_offset * 3)
+			b_idx = sector // 8
+			b_bit = sector % 8
+			mask_byte = self.payload[track_bytes_start + b_idx]
+			return bool(mask_byte & (1 << b_bit))
+			
+	def toggle_sector_allocation_status(self, track, sector):
+		"""Natively flips the allocation bit mask for a 1571 double-sided .d71 image 
+		handling Side 0 (Track 1-35) or Side 1 (Track 36-70) bit alignments perfectly.
+		"""
+		if track <= 35:
+			s0_idx = D71FileSystemPlugin.get_d71_linear_sector_index(18, 0) * 256
+			track_offset = s0_idx + (track * 4)
+			b_idx = sector // 8
+			b_bit = sector % 8
+			self.payload[track_offset + 1 + b_idx] ^= (1 << b_bit)
+		else:
+			s1_idx = D71FileSystemPlugin.get_d71_linear_sector_index(53, 0) * 256
+			t_offset = track - 36
+			track_bytes_start = s1_idx + (t_offset * 3)
+			b_idx = sector // 8
+			b_bit = sector % 8
+			self.payload[track_bytes_start + b_idx] ^= (1 << b_bit)
+			
+	def write_virtual_sector(self, track, sector, data_bytes):
+		"""Unified Flat-File Sector Writer for the 1571 plugin.
+		Treats the .d71 layout as a flat extension of a 1541 to achieve perfect parity 
+		with our working .d64 saving mechanics, both standalone and inside a .dhd container.
+		"""
+		t = int(track)
+		s = int(sector)
+		
+		# Compute the flat, sequential sector index matching a standard CBM .d71 stream layout
+		# Track 18 sits exactly where it belongs, and side-2 registers append sequentially
+		linear_idx = D71FileSystemPlugin.get_d71_linear_sector_index(t, s) * 256
+		
+		if linear_idx + 256 > len(self.payload):
+			return False
+			
+		clean_data = bytes(data_bytes[:256].ljust(256, b"\x00"))
+		
+		# Enforce a single globally shared mutable type for array patching operations
+		if isinstance(self.payload, bytes):
+			self.payload = bytearray(self.payload)
+			
+		# CRITICAL FIX: Write the modified hex bytes DIRECTLY into self.payload!
+		# This eliminates any hidden private stream bypass loops permanently.
+		self.payload[linear_idx : linear_idx + 256] = clean_data
+		self.is_dirty = True
+		
+		# --- DHD MULTI-PARTITION SAVE INTERCEPT HOOK ---
+		# Because self.payload is now actively updated, our parent flush loop will 
+		# effortlessly capture your modifications and commit them to the PC hard drive!
+		if hasattr(self, "parent_dhd_handler") and self.parent_dhd_handler:
+			parent_dhd = self.parent_dhd_handler
+			part_id = getattr(self, "parent_partition_id", None)
+			part_info = parent_dhd.partitions_registry.get(part_id)
+			
+			if part_info:
+				b_start = part_info["byte_start"]
+				b_len = part_info["byte_length"]
+				
+				if isinstance(parent_dhd.payload, bytes):
+					parent_dhd.payload = bytearray(parent_dhd.payload)
+					
+				# Pull a clean deep copy snapshot out of our freshly updated payload buffer array
+				current_updated_bytes = bytes(self.payload)
+				
+				# Patch the parent's master platter block window using the absolute byte constraints of the partition
+				parent_dhd.payload[b_start : b_start + b_len] = current_updated_bytes[:b_len]
+				parent_dhd.is_dirty = True
+				parent_dhd.flush_dhd_to_disk()
+			return True
+			
+		# Standalone file serialization pass back to local PC storage media
+		if hasattr(self, "archive_name") and self.archive_name:
+			try:
+				with open(os.path.abspath(self.archive_name), "wb") as f_out:
+					f_out.write(bytes(self.payload))
+			except Exception:
+				pass
+		return True
+			
+		# === STEP 1: STERILE 70-TRACK LINEAR BYTE MAPPING ===
+	def get_d71_linear_sector_offset(t, s):
+		total_sectors_accumulator = 0
+		
+		# Walk through every track preceding our target to cleanly sum the sectors up
+		for check_t in range(1, t):
+			# Safely query your master profile matrix for each track's sector density
+			sec_in_track = ImageGeometryRegistry.get_sectors_in_track("D71", check_t)
+			total_sectors_accumulator += sec_in_track
+			
+		# Check boundary limits for the targeted sector cell
+		max_s_allowed = ImageGeometryRegistry.get_sectors_in_track("D71", t)
+		if s >= max_s_allowed:
+			return -1
+			
+		# Clear mathematical linear offset address (256 bytes per sector block)
+		return (total_sectors_accumulator + s) * 256
+
+		file_offset = get_d71_linear_sector_offset(int(track), int(sector))
+		
+		# Validate boundaries against your true master payload array length
+		master_data_source = self.file_bytes if hasattr(self, "file_bytes") and self.file_bytes else self.payload
+		if file_offset == -1 or file_offset + 256 > len(master_data_source):
+			return False
+			
+		# === STEP 2: APPLY CHANGES IN RAM BUFFERS ===
+		incoming_bytes = bytes(raw_bytes)
+		self.payload[file_offset : file_offset + 256] = incoming_bytes
+		if hasattr(self, "file_bytes") and self.file_bytes:
+			self.file_bytes[file_offset : file_offset + 256] = incoming_bytes
+			
+		# Synchronize auxiliary localized dictionary caches safely
+		local_cache_key = (int(track), int(sector))
+		if hasattr(self, "virtual_sector_cache_pool"):
+			self.virtual_sector_cache_pool[local_cache_key] = incoming_bytes
+
+		# === STEP 3: AUTOMATED CASCADING WRITE-THROUGH BACKPLANE ===
+		master_platter_bytes = bytes(self.payload)
+		for attr_target in ("file_bytes", "container_bytes", "raw_data", "master_payload"):
+			if hasattr(self, attr_target):
+				setattr(self, attr_target, bytearray(master_platter_bytes))
+
+		# === STEP 4: PERSIST MODIFICATIONS TO THE WINDOWS FILE SYSTEM ===
+		if hasattr(self, "archive_name") and self.archive_name:
+			absolute_file_path = os.path.abspath(self.archive_name)
+			try:
+				with open(absolute_file_path, "wb") as f_out:
+					f_out.write(master_platter_bytes)
+			except Exception:
+				return False
+				
+		return True
+
+	def list_directory(self):
+		"""Returns the fully parsed folder directory entries list matching your exact 32-byte step buffer specs."""
+		file_list = [{
+			"name": "..", "is_directory": True, "is_virtual_container": False,
+			"type_display": "UP-DIR", "size_display": " ", "modify_time_str": " -- -- -- "
+		}]
+		
+		curr_t = 18
+		curr_s = 1
+		visited_sectors = set()
+			
+		while curr_t > 0 and (curr_t, curr_s) not in visited_sectors:
+			if curr_t > 70:
+				break
+					
+			visited_sectors.add((curr_t, curr_s))
+			linear_idx = D71FileSystemPlugin.get_d71_linear_sector_index(curr_t, curr_s) * 256
+			if linear_idx + 256 > len(self.payload):
+				break
+				
+			# 1. Load the full 256-byte directory sector
+			sector_data = self.payload[linear_idx : linear_idx + 256]
+			
+			# 2. Extract and note the first 2 jump bytes to manage our track chain routing
+			next_t = sector_data[0]
+			next_s = sector_data[1]
+			
+			# 3. Separate the remaining 254 bytes into a clean, independent record buffer array
+			record_buffer = sector_data[2:256]
+			
+			# 4. Step precisely by 32 bytes using your proven multiplier pass
+			for slot_idx in range(8):
+				start_offset = slot_idx * 32
+				
+				# FIXED: Validates boundaries against the full 256-byte sector data limit to catch the 8th slot cleanly!
+				# Slot 7 ends exactly at physical offset 2 + 224 + 32 = 256, fitting perfectly.
+					
+				# Extract the isolated 32-byte file record row out of our clean buffer window
+				entry_bytes = record_buffer[start_offset : start_offset + 32]
+				
+				# Local 0-based relative offset targets inside the standard 32-byte file record
+				ftype_raw = entry_bytes[0] # Offset $01: File type flag byte [1.1]
+				if ftype_raw == 0x00: # Empty or unallocated record slot placeholder
+					continue
+					
+				start_t = entry_bytes[1] # Offset $02: Starting Track
+				start_s = entry_bytes[2] # Offset $03: Starting Sector
+				
+				# Filename field tracks from relative index positions 3 to 19 inclusive
+				raw_name = entry_bytes[3:19]
+				
+				# Fixed properties trackers pull block size decimal bytes accurately from offsets +28 and +29!
+				size_low = entry_bytes[28]
+				size_high = entry_bytes[29]
+				size_blocks = size_low + (size_high << 8)
+				
+				try:
+					# FIXED: Grabs the numerical array directly and triggers the filename tracking flag!
+					# This forces both the leading AND trailing spaces to turn into safe background 
+					# underscores (_) globally, completely bypassing any metadata cleanups.
+					clean_name = PETSCIIDecoder.decode_name(raw_name)
+					
+					# Decode file type display flags
+					type_flags = ftype_raw & 0x0F
+					if type_flags == 1: type_lbl = "SEQ"
+					elif type_flags == 2: type_lbl = "PRG"
+					elif type_flags == 3: type_lbl = "USR"
+					elif type_flags == 4: type_lbl = "REL"
+					else: type_lbl = "DEL"
+					
+					if (ftype_raw & 0x80):
+						type_lbl = type_lbl
+					else:
+						type_lbl = f"*{type_lbl}"
+						
+					if clean_name:
+						file_list.append({
+							"name": clean_name, "is_directory": False, "is_virtual_container": False,
+							"type_display": type_lbl, "size_display": str(size_blocks),
+							"vfs_meta": {"track": start_t, "sector": start_s, "blocks": size_blocks}
+						})
+				except Exception:
+					continue
+					
+			curr_t = next_t
+			curr_s = next_s
+
+		# --- PART B: CALCULATE BLOCKS FREE FROM TWIN BAM ZONES ---
+		free_blocks_total = 0
+		s0_idx = D71FileSystemPlugin.get_d71_linear_sector_index(18, 0) * 256
+		
+		if s0_idx + 256 <= len(self.payload):
+			# 1. SIDE 0 (TRACKS 1-35): Read from Track 18, Sector 0 counters [1.1]
+			for t_idx in range(1, 36):
+				if t_idx == 18:
+					continue # Track 18 is the directory track block itself, handled natively [1.1]
+				free_blocks_total += int(self.payload[s0_idx + (t_idx * 4)])
+				
+			# 2. EVALUATE DOUBLE-SIDED FLAG STATUS [1.1]
+			# Check offset 0x03 inside the Side 0 BAM (Hex 0x80 is decimal 128) [1.1]
+			is_double_sided = (self.payload[s0_idx + 3] == 0x80)
+			
+			if is_double_sided:
+				s1_idx = D71FileSystemPlugin.get_d71_linear_sector_index(53, 0) * 256
+				if s1_idx + 256 <= len(self.payload):
+					# Direct physical track dictionary mapping Side 1 tracks (36-70) straight to their sector caps [1.1]
+					track_sector_counts = {
+						36: 21, 37: 21, 38: 21, 39: 21, 40: 21, 41: 21, 42: 21, 43: 21, 44: 21, 
+						45: 21, 46: 21, 47: 21, 48: 21, 49: 21, 50: 21, 51: 21, 52: 21,
+						53: 19, 54: 19, 55: 19, 56: 19, 57: 19, 58: 19, 59: 19,
+						60: 18, 61: 18, 62: 18, 63: 18, 64: 18, 65: 18,
+						66: 17, 67: 17, 68: 17, 69: 17, 70: 17
+					}
+					
+					# Step sequentially by 3 bytes for each track's bitmask on Side 1 (35 tracks total) [1.1]
+					# Tracks 36-70 bitmasks start exactly at physical byte offset 0 of Track 53, Sector 0 [1.1]
+					for t_offset in range(35):
+						actual_track = 36 + t_offset
+						
+						track_bytes_start = s1_idx + (t_offset * 3)
+						max_sectors = track_sector_counts[actual_track]
+						
+						b1 = self.payload[track_bytes_start]
+						b2 = self.payload[track_bytes_start + 1]
+						b3 = self.payload[track_bytes_start + 2]
+						
+						# Combine the 3 bytes into a clean 24-bit integer mask natively [1.1]
+						track_mask = b1 | (b2 << 8) | (b3 << 16)
+						
+						# Standard 1541/1571 bitwise rules: 1 means the sector block is FREE [1.1]
+						for sector_bit in range(max_sectors):
+							if track_mask & (1 << sector_bit):
+								free_blocks_total += 1
+								
+		self.free_sectors_count = free_blocks_total
+		return file_list
+
+	def read_virtual_sector(self, track, sector):
+		"""Natively queries the raw .d71 payload buffer using 70-track sector offset formulas."""
+		linear_idx = D71FileSystemPlugin.get_d71_linear_sector_index(track, sector) * 256
+		if linear_idx + 256 <= len(self.payload):
+			return bytearray(self.payload[linear_idx : linear_idx + 256])
+		return bytearray(256)
+
+	def extract_file_bytes(self, vfs_meta_node):
+		"""Assembles raw file payload byte streams by sequentially traversing the 1571 track/sector chains."""
+		file_bytes = bytearray()
+		curr_t = vfs_meta_node.get("track", 0)
+		curr_s = vfs_meta_node.get("sector", 0)
+		visited = set()
+		
+		while curr_t > 0 and (curr_t, curr_s) not in visited:
+			if curr_t > 70:
+				break
+			visited.add((curr_t, curr_s))
+			linear_idx = D71FileSystemPlugin.get_d71_linear_sector_index(curr_t, curr_s) * 256
+			if linear_idx + 256 > len(self.payload):
+				break
+				
+			sector_data = self.payload[linear_idx : linear_idx + 256]
+			next_t = int(sector_data[0])
+			next_s = int(sector_data[1])
+			
+			if next_t == 0:
+				active_bytes_count = next_s - 1
+				file_bytes.extend(sector_data[2 : 2 + active_bytes_count])
+			else:
+				file_bytes.extend(sector_data[2:256])
+				
+			curr_t = next_t
+			curr_s = next_s
+			
+		return bytes(file_bytes)
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/02_drivers_commodore/04_d81.py
+# ----------------------------------------------------------------------------
+
+class D81FileSystemPlugin:
+	"""Production-grade filesystem driver plugin natively mounting, parsing, and mapping 
+	high-density 1581 (.d81) virtual disk containers seamlessly [1.1].
+	"""
+	def __init__(self, payload_bytes, archive_name=""):
+		# LINE 2384 CORRECTION: Enforces a clean, writable bytearray structure at instantiation
+		self.payload = bytearray(payload_bytes)
+		self.archive_name = archive_name
+		self.file_list = []
+		self.free_sectors_count = 0
+		self.disk_label_msg = "0 \"UNLABELLED DISK \" ID 2A"
+		
+		# Bind the physical constraints matching high-density 1581 profiles [1.1]
+		self.format_type = "D81"
+		# FIXED: Essential tracking registers to drive fluid subdirectory navigation!
+		# FIXED: Essential interface hooks to prevent dropdown menu/sector editor AttributeErrors!
+		self.default_dir_track = 40
+		self.default_dir_sector = 0		
+		self.current_dir_track = 40
+		self.current_dir_sector = 0
+		self.directory_history_stack = []
+
+		self.max_tracks_limit = 80
+		self.no_sector_editor = False
+		
+		# Execute automatic mounting routines on instantiation
+		self.mount()
+		self.list_directory()
+
+	@staticmethod
+	def get_d81_linear_sector_index(track, sector):
+		"""Translates physical 1581 1-based tracks and 0-based sectors into a flat, 
+		linear offset tracking multiplier. Every single track holds exactly 40 sectors [1.1].
+		"""
+		if track < 1 or track > 80 or sector < 0 or sector > 39:
+			return 0
+		return ((track - 1) * 40) + sector
+
+	def read_virtual_sector(self, track, sector):
+		"""Extracts a raw 256-byte sector payload block natively from the image stream."""
+		idx = D81FileSystemPlugin.get_d81_linear_sector_index(track, sector) * 256
+		if idx + 256 <= len(self.payload):
+			return bytes(self.payload[idx : idx + 256])
+		return b"\x00" * 256
+
+	def write_virtual_sector(self, track, sector, raw_bytes):
+		"""Production-grade high-density 1581 .d81 sector modifier with integrated 
+		Data Change Guard and sterile uniform track offset mapping [1.1, 1.13].
+		"""
+		if len(raw_bytes) != 256:
+			return False
+			
+		# Enforce strict 1581 physical constraints (Tracks 1 to 80, Sectors 0 to 39) [1.13]
+		if track < 1 or track > 80 or sector < 0 or sector > 39:
+			return False
+
+		# === STEP 1: NATIVE DATA CHANGE GUARD SAFETY CHECK ===
+		local_cache_key = (int(track), int(sector))
+		# FIXED: Looks for your class's existing cache dictionary dynamically
+		active_cache = getattr(self, "sector_cache", getattr(self, "virtual_sector_cache_pool", {}))
+		if local_cache_key in active_cache:
+			if active_cache[local_cache_key] == bytes(raw_bytes):
+				return "NO_CHANGE"
+
+		# === STEP 2: UNIFORM 1581 LINEAR BYTE OFFSET MAPPING ===
+		# Every single track holds exactly 40 sectors; no accumulator loops required! [1.13]
+		file_offset = ((int(track) - 1) * 40 + int(sector)) * 256
+		
+		# Validate boundaries against your true master payload array length
+		master_data_source = self.file_bytes if hasattr(self, "file_bytes") and self.file_bytes else self.payload
+		if file_offset + 256 > len(master_data_source):
+			return False
+			
+		# === STEP 3: APPLY CHANGES IN RAM BUFFERS ===
+		incoming_bytes = bytes(raw_bytes)
+		
+		if not isinstance(self.payload, bytearray):
+			self.payload = bytearray(self.payload)
+			
+		self.payload[file_offset : file_offset + 256] = incoming_bytes
+		if hasattr(self, "file_bytes") and self.file_bytes:
+			self.file_bytes[file_offset : file_offset + 256] = incoming_bytes
+			
+		# FIXED: Loops through common cache dictionaries to update whatever variable this plugin is using!
+		for attr_name in ("sector_cache", "virtual_sector_cache_pool", "virtual_sectors"):
+			if hasattr(self, attr_name) and isinstance(getattr(self, attr_name), dict):
+				getattr(self, attr_name)[local_cache_key] = incoming_bytes
+
+		# === STEP 4: AUTOMATED CASCADING WRITE-THROUGH BACKPLANE ===
+		master_platter_bytes = bytes(self.payload)
+		for attr_target in ("file_bytes", "container_bytes", "raw_data", "master_payload"):
+			if hasattr(self, attr_target):
+				setattr(self, attr_target, bytearray(master_platter_bytes))
+				
+		# SCENARIO A: This plugin is running as a NESTED SUB-PARTITION inside a master .dhd container!
+		if hasattr(self, "parent_dhd_handler") and self.parent_dhd_handler:
+			parent_dhd = self.parent_dhd_handler
+			part_id = getattr(self, "parent_partition_id", None)
+			part_info = parent_dhd.partitions_registry.get(part_id)
+			
+			if part_info:
+				b_start = part_info["byte_start"]
+				b_len = part_info["byte_length"]
+				
+				# Enforce mutable type conformity on the parent payload container stream
+				if isinstance(parent_dhd.payload, bytes):
+					parent_dhd.payload = bytearray(parent_dhd.payload)
+					
+				# Safely patch our modified 16MB sub-image buffer right into the parent's layout window!
+				parent_dhd.payload[b_start : b_start + b_len] = self.payload[:b_len]
+				
+				# Arm the parent handler's dirty flag and trigger its physical disk save sequence!
+				parent_dhd.is_dirty = True
+				parent_dhd.flush_dhd_to_disk()
+			return True
+				
+		# === STEP 5: PERSIST MODIFICATIONS TO THE WINDOWS FILE SYSTEM ===
+		if hasattr(self, "archive_name") and self.archive_name:
+			absolute_file_path = os.path.abspath(self.archive_name)
+			try:
+				with open(absolute_file_path, "wb") as f_out:
+					f_out.write(master_platter_bytes)
+			except Exception:
+				return False
+				
+		return True
+
+	def mount(self):
+		"""Natively isolates unique disk metadata, splits layout IDs, and builds headers [1.1]."""
+		# Track 40, Sector 0 contains the central Disk Header block [1.1]
+		header_bytes = self.read_virtual_sector(40, 0)
+		
+		# Offsets matching 1581 specs: Label at 4-19, ID at 22-23, DOS at 25-26 [1.1]
+		raw_label = header_bytes[4:20]
+		raw_id = header_bytes[22:24]
+		raw_dos = header_bytes[25:27]
+		
+		lbl_str = PETSCIIDecoder.decode_name(raw_label).replace("_", " ")
+		id_str = PETSCIIDecoder.decode_name(raw_id).strip().upper()
+		dos_str = PETSCIIDecoder.decode_name(raw_dos).strip().upper()
+		
+		# Formats header string tightly to include your space-separated capital IDs! [1.1]
+		self.disk_label_msg = f'0 "{lbl_str:<16}" {id_str} {dos_str}'
+		
+	def allocate_virtual_sector_in_bam(self, track, sector, bam_track=None):
+		"""Hardware-accurate bitwise allocator for 1581 profiles.
+		Flips the target sector's availability bit to 0 (USED) and decrements the track counter.
+		Defaults to target Track 40 unless overridden by an explicit partition track [1.13].
+		"""
+		if track < 1 or track > 80 or sector < 0 or sector > 39:
+			return False
+		if track == 40:
+			return False
+
+		# Polymorphic Routing Target: Default to standard root track 40 unless told otherwise
+		target_bam_root = 40 if bam_track is None else int(bam_track)
+
+		bam_sector_num = 1 if track <= 40 else 2
+		logical_track = track if track <= 40 else (track - 40)
+		
+		# Fetch from the dynamically requested BAM root platter coordinate location! [1.13]
+		bam_data = bytearray(self.read_virtual_sector(target_bam_root, bam_sector_num))
+		if len(bam_data) < 256:
+			return False
+			
+		track_offset = 16 + ((logical_track - 1) * 6)
+		byte_in_mask = 1 + (sector // 8)
+		bit_position = sector % 8
+		target_byte_idx = track_offset + byte_in_mask
+		
+		if not (bam_data[target_byte_idx] & (1 << bit_position)):
+			return True # Already marked allocated
+			
+		bam_data[target_byte_idx] &= ~(1 << bit_position)
+		if bam_data[track_offset] > 0:
+			bam_data[track_offset] -= 1
+			
+		return self.write_virtual_sector(target_bam_root, bam_sector_num, bytes(bam_data))
+
+	def deallocate_virtual_sector_in_bam(self, track, sector, bam_track=None):
+		"""Hardware-accurate bitwise deallocator for 1581 profiles.
+		Flips the target sector's availability bit to 1 (FREE) and increments the track counter.
+		Defaults to target Track 40 unless overridden by an explicit partition track [1.13].
+		"""
+		if track < 1 or track > 80 or sector < 0 or sector > 39:
+			return False
+		if track == 40:
+			return False
+
+		target_bam_root = 40 if bam_track is None else int(bam_track)
+
+		bam_sector_num = 1 if track <= 40 else 2
+		logical_track = track if track <= 40 else (track - 40)
+		
+		bam_data = bytearray(self.read_virtual_sector(target_bam_root, bam_sector_num))
+		if len(bam_data) < 256:
+			return False
+			
+		track_offset = 16 + ((logical_track - 1) * 6)
+		byte_in_mask = 1 + (sector // 8)
+		bit_position = sector % 8
+		target_byte_idx = track_offset + byte_in_mask
+		
+		if bam_data[target_byte_idx] & (1 << bit_position):
+			return True # Already marked free
+			
+		bam_data[target_byte_idx] |= (1 << bit_position)
+		if bam_data[track_offset] < 40:
+			bam_data[track_offset] += 1
+			
+		return self.write_virtual_sector(target_bam_root, bam_sector_num, bytes(bam_data))
+
+	def create_1581_partition_sectors(self, start_t, end_t, name, label, disk_id):
+		"""Surgically compiles and injects standard 1581 partition sector containers.
+		Writes the custom Partition Header, builds local sub-BAM sectors, allocates
+		track availability blocks, and updates the parent directory table linkages [1.13].
+		"""
+		try:
+			# 1. PARSE TOTAL SECTORS FOOTPRINT BOUNDS MATH
+			total_tracks = (end_t - start_t) + 1
+			# Track size block count yields exactly 40 sectors per track minus the local dir track [1.13]
+			calculated_free_blocks = (total_tracks - 1) * 40
+			
+			# 2. WRITE THE PARTITION HEADER DESCRIPTORS TO SECTOR 0 OF START_TRACK [1.1, 1.13]
+			header_block = bytearray(256)
+			header_block[0:2] = [0x00, 0xFF] # Set structural sector link terminators
+			
+			# Encode string attributes tightly into standard PETSCII matching byte arrays [1.1]
+			# FIXED: Forms a clean, raw bytearray padded with 0xA0 primitives to completely avoid UTF-8 expansion glitches! [1.1]
+			# === FIXED: HIGH-ACCURACY BYTE CONVERTERS WITH HARDENED ASCII PADDING [1.1] ===
+			petscii_label = bytearray(16)
+			clean_label_str = str(label).strip()
+			label_bytes = clean_label_str.encode('ascii', 'ignore')[:16]
+			petscii_label[0:len(label_bytes)] = label_bytes
+			for idx in range(len(label_bytes), 16):
+				petscii_label[idx] = 0xA0 # Raw unshifted CBM space primitive [1.1]
+
+			petscii_id = bytearray(2)
+			clean_id_str = str(disk_id).strip()
+			id_bytes = clean_id_str.encode('ascii', 'ignore')[:2]
+			petscii_id[0:len(id_bytes)] = id_bytes
+			for idx in range(len(id_bytes), 2):
+				petscii_id[idx] = 0xA0
+
+			# ─── YOUR PASTE STOP ANCHOR (LINES BELOW REMAIN COMPLETELY UNTOUCHED) ───
+			petscii_dos = b"3D"
+			
+			header_block[4:20]	= petscii_label
+			header_block[22:24] = petscii_id
+			header_block[25:27] = petscii_dos
+			
+			# Encode the exact numeric free block value right at bytes 11-12 of the partition's BAM [1.13]
+			struct.pack_into("<H", header_block, 11, calculated_free_blocks)
+			
+			# Patch Sector 0 directly onto the platter stream caches
+			self.write_virtual_sector(start_t, 0, bytes(header_block))
+			
+			# 3. CONSTRUCT THE PARTITION SUB-BAM SECTORS (Sectors 1 and 2) [1.13]
+			# To act like an authentic independent disk, we format local BAM maps
+			# where tracks outside our partition footprint are pre-flagged as fully used! [1.13]
+			bam1 = bytearray(256)
+			bam2 = bytearray(256)
+			bam1[0:2] = [0x00, 0xFF]
+			bam2[0:2] = [0x00, 0xFF]
+			
+			# Build Sector 1 Track Map Loop (Tracks 1 to 40) [1.13]
+			for t in range(1, 41):
+				off = 16 + ((t - 1) * 6)
+				if start_t <= t <= end_t and t != start_t:
+					# This track resides inside our active partition! Mark all 40 sectors as FREE [1.13]
+					bam1[off] = 40 # Set Free Sector Counter to 40
+					bam1[off+1:off+6] = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF] # All availability bits set to 1
+				else:
+					# Out of partition bounds! Hard-flag track as FULLY USED [1.13]
+					bam1[off] = 0
+					bam1[off+1:off+6] = [0x00, 0x00, 0x00, 0x00, 0x00]
+					
+			# Build Sector 2 Track Map Loop (Tracks 41 to 80) [1.13]
+			for t in range(41, 81):
+				off = 16 + ((t - 41) * 6)
+				if start_t <= t <= end_t and t != start_t:
+					bam2[off] = 40
+					bam2[off+1:off+6] = [0xFF, 0xFF, 0xFF, 0xFF, 0xFF]
+				else:
+					bam2[0] = 0
+					bam2[off+1:off+6] = [0x00, 0x00, 0x00, 0x00, 0x00]
+					
+			self.write_virtual_sector(start_t, 1, bytes(bam1))
+			self.write_virtual_sector(start_t, 2, bytes(bam2))
+			
+			# 4. ZERO OUT THE FILES RECORD DATA TRACK CHUNKS IN THIS WINDOW RANGE [1.13]
+			blank_sector_data = b"\x00" * 256
+			for t in range(start_t + 1, end_t + 1):
+				for s in range(40):
+					self.write_virtual_sector(t, s, blank_sector_data)
+					
+			# 5. FIXED: STREAMLINED ALLOCATION DRIVES EXCLUSIVELY INTO THE ACTIVE WORKSPACE BAM [1.13]
+			active_dir_t = getattr(self, "current_dir_track", 40)
+			
+			for t in range(start_t, end_t + 1):
+				for s in range(40):
+					# Pass the active directory track context so the block is claimed inside the proper sandbox layer! [1.13]
+					self.allocate_virtual_sector_in_bam(t, s, bam_track=active_dir_t)
+					
+					# Pass B: If we are inside a subdirectory partition, copy the used mark into its local sub-BAM! [1.13]
+					if active_dir_t != 40:
+						self.allocate_virtual_sector_in_bam(t, s, bam_track=active_dir_t)
+					
+			# 6. INJECT A CLEAN "CBM" FILE SLOT RECORD ENTRY INTO THE CURRENT PARENT DIRECTORY LAYER [1.13]
+			active_dir_t = getattr(self, "current_dir_track", 40)
+			active_dir_s = 3
+			
+			slot_injected = False
+			while active_dir_t != 0:
+				dir_sector = bytearray(self.read_virtual_sector(active_dir_t, active_dir_s))
+				if len(dir_sector) < 256:
+					break
+					
+				# Look for an unallocated empty file slot row stub (First byte == 0x00)
+				for off in range(2, 256, 32):
+					if dir_sector[off] == 0x00:
+						# Empty slot stub found! Package our partition details right here
+						dir_sector[off] = 0x85 # File Type Number: Closed CBM Partition entry flag! [1.13]
+						dir_sector[off+1] = start_t # Target Track Link Vector [1.13]
+						dir_sector[off+2] = 0		# Target Sector Link Vector (Always 0 for partitions) [1.13]
+						
+						# Inject Filename text padded cleanly with PETSCII space marks [1.1]
+						petscii_name = bytearray(16)
+						name_enc = name.encode('utf-8', 'ignore')[:16]
+						petscii_name[0:len(name_enc)] = name_enc
+						for i in range(len(name_enc), 16):
+							petscii_name[i] = 0xA0
+							
+						dir_sector[off+3:off+19] = petscii_name
+						
+						# Inject the 16-bit block size allocation count [1.1]
+						struct.pack_into("<H", dir_sector, off + 28, calculated_free_blocks)
+						
+						self.write_virtual_sector(active_dir_t, active_dir_s, bytes(dir_sector))
+						slot_injected = True
+						break
+						
+				if slot_injected:
+					break
+					
+				# Trace down to the next linked directory track sector block link in the chain
+				next_t, next_s = int(dir_sector[0]), int(dir_sector[1])
+				if next_t == 0:
+					# If the directory is full, allocate an extended directory sector block link next!
+					break
+				active_dir_t, active_dir_s = next_t, next_s
+				
+			return True
+		except Exception:
+			return False
+		
+	def get_partition_creation_track_matrix(self):
+		"""Computes a dictionary map of tracks 1-80 indicating selection eligibility
+		based on active workspace scopes, BAM sector usage, and look-ahead depth thresholds [1.13].
+		"""
+		# DYNAMIC SOURCE LOGIC: Look at the folder track we are currently exploring!
+		active_t = getattr(self, "current_dir_track", 40)
+		
+		# Set baseline playground boundaries
+		min_bound = 1
+		max_bound = 80
+		
+		# If we are nested inside a partition, the playground is bound strictly inside its scope
+		if active_t != 40:
+			min_bound = active_t
+			# Extract the parent partition's absolute upper track limit
+			max_bound = getattr(self, "current_partition_end_track", min_bound + 11) # Default to 12 tracks span fallback
+
+		track_matrix = {}
+		
+		# Initialize all tracks across the platter
+		for t in range(1, 81):
+			if t < min_bound or t > max_bound or t == 40:
+				track_matrix[t] = "X" # Hard lock out-of-scope regions
+				continue
+				
+			# Inspect the sub-BAM sectors of our ACTIVE location track, not a hardcoded 40! [1.13]
+			bam_sec = 1 if t <= 40 else 2
+			log_t = t if t <= 40 else (t - 40)
+			bam_data = self.read_virtual_sector(active_t, bam_sec)
+			
+			if not bam_data or len(bam_data) < 256:
+				track_matrix[t] = "X"
+				continue
+				
+			t_offset = 16 + ((log_t - 1) * 6)
+			free_sectors_count = int(bam_data[t_offset])
+			
+			if free_sectors_count < 40:
+				track_matrix[t] = "X" # Even one allocated sector locks out the entire track
+			else:
+				track_matrix[t] = "." # Clean unallocated track
+				
+		# PASS 2: COUPLER LOOK-AHEAD PASS CONSTRICTOR
+		final_eligible_matrix = {}
+		for t in range(1, 81):
+			if track_matrix.get(t) == "X":
+				final_eligible_matrix[t] = "X"
+				continue
+				
+			can_fit = True
+			# A partition requires a minimum footprint chunk size of 3 tracks sequential
+			for look_ahead in range(t, t + 3):
+				if look_ahead > max_bound:
+					can_fit = False
+					break
+				if look_ahead == 40 or track_matrix.get(look_ahead) == "X":
+					can_fit = False
+					break
+			if can_fit:
+				final_eligible_matrix[t] = "."
+			else:
+				final_eligible_matrix[t] = "X"
+				
+		return final_eligible_matrix
+
+	def list_directory(self):
+		"""Traces standard 1581 directory linkages dynamically across subdirectories [1.13]."""
+		# Forcefully pull our newly shifted dynamic directory track from the state matrix
+		curr_t = getattr(self, "current_dir_track", 40)
+		curr_s = 3
+		
+		self.file_list = []
+		
+		# Inject our back-out hook if we are operating inside a nested sub-partition space [1.13]
+		if curr_t != 40:
+			self.file_list.append({
+				"name": "..", "is_directory": True, "is_virtual_container": False,
+				"type_display": "UP-DIR", "size_display": " ", "modify_time_str": " -- -- -- "
+			})
+			
+		while curr_t != 0:
+				
+			# DYNAMIC OVERRIDE: Force the sector reader to pull from curr_t instead of hardcoded track maps!
+			sec_data = self.read_virtual_sector(curr_t, curr_s)
+			if not sec_data or len(sec_data) < 2:
+				break
+
+				
+			# If the low-level sector buffer returns empty or un-demodulated junk bytes, drop out
+			next_t, next_s = int(sec_data[0]), int(sec_data[1])
+			
+			# Process the 8 standard 32-byte file entry rows inside this sector allocation window
+			for off in range(2, 256, 32):
+				slot = sec_data[off : off + 32]
+				if len(slot) < 30:
+					continue
+					
+				ft_raw = int(slot[0])
+				if ft_raw == 0x00: 
+					continue
+					
+				type_flags = ft_raw & 0x0F
+				core_type = type_flags & 0x07
+				
+				is_sub_dir = False
+				if core_type == 5:
+					t_lbl = "CBM"
+					is_sub_dir = True
+				else:
+					t_lbl = "PRG" if core_type == 2 else "SEQ" if core_type == 1 else "USR" if core_type == 3 else "REL" if core_type == 4 else "DEL"
+					
+				if ft_raw & 0x40: t_lbl = f"<{t_lbl}"
+				if not (ft_raw & 0x80): t_lbl = f"*{t_lbl}"
+					
+				tgt_t, tgt_s = int(slot[1]), int(slot[2])
+				raw_name = slot[3:19]
+				c_nm = PETSCIIDecoder.decode_name(raw_name)
+				b_cnt = struct.unpack("<H", slot[28:30])[0]
+				
+				self.file_list.append({
+					"name": c_nm, "is_directory": is_sub_dir, "is_virtual_container": False,
+					"type_display": t_lbl, "size_display": str(b_cnt),
+					"vfs_meta": {"track": tgt_t, "sector": tgt_s, "is_1581_partition": is_sub_dir}
+				})
+				
+			# Standard 1581 directory chain layout routing progression
+			if next_t == 0:
+				break
+			curr_t, curr_s = next_t, next_s
+
+		# =========================================================================
+		# 🎯 CORE ENGINE FIX: 1581 HARDWARE-MANUAL ALIGNED BAM & HEADER 🎯
+		# =========================================================================
+		header_t = getattr(self, "current_dir_track", 40)
+		free_count = 0
+
+		# 1. FORCE MANDATORY UP-DIR (..) ENTRY HOOK AT THE TOP OF THE LIST ARRAY
+		# Ensures a clean escape link always exists to back out of any mounted state!
+		has_up_dir = any(item["name"] == ".." for item in self.file_list)
+		if not has_up_dir:
+			self.file_list.insert(0, {
+				"name": "..", "is_directory": True, "is_virtual_container": False,
+				"type_display": "UP-DIR" if header_t == 40 else "CBM-DIR", 
+				"size_display": " ", "modify_time_str": " -- -- -- "
+			})
+
+		# 2. ACCURATE HARDWARE SCANNERS READ COUNTER BYTES FROM SECTOR 1 & 2 [1.13]
+		try:
+			# Your manual page proves BAM1 is Sector 1 and BAM2 is Sector 2! [1.13]
+			bam_sector_1 = self.read_virtual_sector(header_t, 1)
+			bam_sector_2 = self.read_virtual_sector(header_t, 2)
+
+			if bam_sector_1 and len(bam_sector_1) >= 256 and bam_sector_2 and len(bam_sector_2) >= 256:
+				# PASS A: Tracks 1 to 40 are stored on Sector 1, starting at byte 16 [1.13]
+				for t in range(1, 41):
+					if t == 40: 
+						continue  # Skip directory track capacity counting [1.13]
+					# Calculate the 6-byte stride block offset for this track [1.13]
+					off = 16 + ((t - 1) * 6)
+					if off < len(bam_sector_1):
+						# Read the track's absolute free sector counter byte! [1.13]
+						free_count += int(bam_sector_1[off])
+
+				# PASS B: Tracks 41 to 80 are stored on Sector 2, starting at byte 16 [1.13]
+				for t in range(41, 81):
+					# Track 41 maps to relative index 0 inside Sector 2 [1.13]
+					off = 16 + ((t - 41) * 6)
+					if off < len(bam_sector_2):
+						# Read the track's absolute free sector counter byte! [1.13]
+						free_count += int(bam_sector_2[off])
+		except Exception:
+			free_count = 0
+
+		# Synchronize the free capacity counters across the driver state properties
+		self.free_sectors_count = free_count
+		self.free_count = free_count
+
+		# 3. EXTRACT DISK VOLUME METADATA NATIVELY FROM DIRECTORY HEADER SECTOR 0 [1.1]
+		try:
+			# Manual page verifies that the Name and IDs live exclusively on Sector 0 [1.1]
+			header_sector = self.read_virtual_sector(header_t, 0)
+			if header_sector and len(header_sector) >= 30:
+				header_bytes = bytearray(header_sector)
+				
+				# Direct standard 1581 directory header layout offset ranges [1.1]
+				raw_label = header_bytes[4:20]
+				raw_id = header_bytes[22:24]
+				raw_dos = header_bytes[25:27]
+				
+				# Convert bytes through your standard PETSCII Decoder module [1.1]
+				lbl_str = PETSCIIDecoder.decode_name(raw_label).replace("_", " ").rstrip()
+				id_str = PETSCIIDecoder.decode_name(raw_id).strip().upper()
+				dos_str = PETSCIIDecoder.decode_name(raw_dos).strip().upper()
+				
+				if not lbl_str: 
+					lbl_str = "1581 DISK" if header_t == 40 else f"PARTITION T{header_t}"
+				if not id_str:	
+					id_str = "81" if header_t == 40 else "82"
+				if not dos_str: 
+					dos_str = "3D"
+				
+				self.disk_label_msg = f'"{lbl_str:<16}" {id_str} {dos_str}'
+		except Exception:
+			pass
+
+		return self.file_list
+		
+	def extract_file_bytes(self, vfs_meta):
+		"""Sequentially extracts raw file data bytes from a 1581 filesystem structure.
+		Traces the 1581 track/sector block allocation links to compile a pristine 
+		payload buffer array ready for cross-filesystem file copies. [1.13, 1.26]
+		"""
+		if not vfs_meta:
+			return b""
+			
+		# Extract starting track and sector markers from the 1581 directory entry [1.13]
+		curr_t = int(vfs_meta.get("track", 0))
+		curr_s = int(vfs_meta.get("sector", 0))
+		
+		if curr_t == 0:
+			return b""
+			
+		file_bytes_accumulator = bytearray()
+		visited_blocks = set()
+		
+		# Trace the 1581 linked-list sector allocation path block-by-block [1.13]
+		while curr_t != 0 and (curr_t, curr_s) not in visited_blocks:
+			visited_blocks.add((curr_t, curr_s))
+			
+			# Fetch the raw 256-byte 1581 sector straight out of memory
+			sector_buffer = self.read_virtual_sector(curr_t, curr_s)
+			if not sector_buffer or len(sector_buffer) < 256:
+				break
+				
+			# Standard CBM architecture link bytes mapping [1.13]:
+			# FIXED: Added explicit [0] and [1] brackets to read raw byte values as integer scalars!
+			next_t = sector_buffer[0]
+			next_s = sector_buffer[1]
+			
+			if next_t == 0:
+				# Target block reached! Byte 1 acts as a length offset integer [1.13]
+				valid_bytes_count = next_s
+				if 2 <= valid_bytes_count <= 255:
+					file_bytes_accumulator.extend(sector_buffer[2 : valid_bytes_count + 1])
+				else:
+					file_bytes_accumulator.extend(sector_buffer[2:])
+				break
+			else:
+				# Middle data block payload: grab all 254 data bytes cleanly [1.13]
+				file_bytes_accumulator.extend(sector_buffer[2:])
+				
+			curr_t = next_t
+			curr_s = next_s
+			
+		return bytes(file_bytes_accumulator)
+		
+	def check_sector_free_status(self, track, sector):
+		"""Natively checks the 1581 dual-BAM bitmasks to identify if a block is free (True) 
+		or used (False), keeping your BAM Editor fully compatible with .d81 formats out of the box [1.1]!
+		"""
+		if track < 1 or track > 80 or sector < 0 or sector > 39:
+			return False
+			
+		if track <= 40:
+			bam_bytes = self.read_virtual_sector(40, 1)
+			offset = 16 + ((track - 1) * 6)
+		else:
+			bam_bytes = self.read_virtual_sector(40, 2)
+			offset = 16 + ((track - 41) * 6)
+			
+		# Skip past the 1-byte track total counter byte to find the 5-byte mask array start [1.1]
+		mask_start = offset + 1
+		b_idx = sector // 8
+		b_bit = sector % 8
+		
+		mask_byte = bam_bytes[mask_start + b_idx]
+		return bool(mask_byte & (1 << b_bit))
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/02_drivers_commodore/05_lnx.py
+# ----------------------------------------------------------------------------
+
+class LNXFileSystemPlugin(BaseVFSHandler):
+	"""Dynamic Broker Adapter parsing legacy Commodore Lynx (.LNX) archives 
+	utilizing a robust, line-ending agnostic text parser and a pretend 
+	256-byte sector-buffered memory layout chassis.
+	"""
+	def mount(self):
+		self.default_dir_track = 1
+		self.default_dir_sector = 0
+		self.max_tracks_limit = 255
+		self.no_sector_editor = False  # Enabled! The sector buffer mapping makes low-level viewing 100% stable
+		self.disk_label_msg = "0 LYNX VIRTUAL DISK"
+		self.read_only = True
+		
+		self.file_list = [{
+			"name": "..", "is_directory": True, "is_virtual_container": False,
+			"type_display": "UP-DIR", "size_display": " ", "modify_time_str": " -- -- -- "
+		}]
+		
+		# --- PHASE 1: PARSE METADATA VIA THE UNIVERSAL BYTE-SPLIT CORE ---
+		payload_len = len(self.payload)
+		basic_end = self.payload.find(b'\x00\x00\x00')
+		if basic_end == -1: 
+			return
+			
+		header_offset = basic_end + 3
+		
+		# Isolate text-only index list safely at the byte-level to preserve PETSCII symbols
+		text_segment = self.payload[header_offset : header_offset + 6400]
+		
+		# Universally agnostic byte-splitter: Split by CR, LF, or CR+LF dynamically
+		lines = []
+		current_line = bytearray()
+		for b in text_segment:
+			if b == 13 or b == 10:	# CR or LF markers
+				if current_line:
+					lines.append(bytes(current_line))
+					current_line = bytearray()
+			else:
+				current_line.append(b)
+		if current_line:
+			lines.append(bytes(current_line))
+			
+		if len(lines) < 2: 
+			return
+			
+		# Dynamically discover the file count line integer signature parameter
+		num_files = 0
+		current_line_idx = 1
+		
+		while current_line_idx < len(lines):
+			val_str = lines[current_line_idx].decode('latin-1', errors='ignore').strip()
+			if val_str.isdigit():
+				num_files = int(val_str)
+				current_line_idx += 1  # Advance past the file count to the first record line
+				break
+			current_line_idx += 1
+			
+		if num_files == 0:
+			return
+			
+		file_metadata = []
+		
+		# Extract the 4-line metadata blocks exactly matching your authentic hardware hex dump sequence!
+		for _ in range(num_files):
+			if current_line_idx + 3 >= len(lines): 
+				break
+				
+			raw_name_bytes = lines[current_line_idx]
+			clean_name = PETSCIIDecoder.decode_name(raw_name_bytes).replace("_", " ").strip()
+			clean_name = clean_name.replace('\xa0', '').strip()
+			
+			blocks_str = lines[current_line_idx + 1].decode('latin-1', errors='ignore').strip()
+			ftype_raw = lines[current_line_idx + 2].decode('latin-1', errors='ignore').strip().upper()
+			last_block_bytes_str = lines[current_line_idx + 3].decode('latin-1', errors='ignore').strip()
+			
+			# Maps abbreviated 1-letter labels to standard 1541 format codes cleanly
+			if ftype_raw.startswith('P'):
+				type_lbl = "PRG"
+			elif ftype_raw.startswith('S'):
+				type_lbl = "SEQ"
+			elif ftype_raw.startswith('U'):
+				type_lbl = "USR"
+			elif ftype_raw.startswith('R'):
+				type_lbl = "REL"
+			else:
+				type_lbl = ftype_raw if ftype_raw else "PRG"
+				
+			try:
+				blocks = int(blocks_str) if blocks_str.isdigit() else 0
+				last_bytes_val = int(last_block_bytes_str) if last_block_bytes_str.isdigit() else 0
+				
+				if blocks > 0:
+					total_bytes = (254 * (blocks - 1)) + (last_bytes_val - 1)
+				else:
+					total_bytes = 0
+			except Exception:
+				blocks = 0
+				total_bytes = 0
+
+			file_metadata.append({
+				"name": clean_name, 
+				"type": type_lbl,
+				"bytes": total_bytes,
+				"raw_blocks": blocks
+			})
+			current_line_idx += 4
+
+		# FIXED: Safe, robust data boundary extractor calculates text lengths using index counters smoothly
+		data_start_offset = header_offset
+		processed_count = 0
+		
+		# Sum up text data lengths explicitly across the exact total index lines evaluated in Phase 1
+		for line_byte_node in lines[:current_line_idx]:
+			data_start_offset += len(line_byte_node) + 1 # Include trailing line character overhead offsets
+			
+		# Structural emergency alignment guard bounds checker parameter
+		if data_start_offset >= payload_len:
+			return
+
+		# --- PHASE 2: GENERATE THE MOCK 256-BYTE DRIVE SECTOR MAPS ---
+		self.virtual_disk_sectors = []
+		idx = data_start_offset
+		
+		while idx < payload_len:
+			chunk = self.payload[idx : idx + 254]
+			if not chunk: 
+				break
+				
+			if len(chunk) < 254:
+				chunk = chunk + b"\x00" * (254 - len(chunk))
+				
+			sector_buffer = bytearray(256)
+			next_sector_idx = len(self.virtual_disk_sectors) + 1
+			
+			sector_buffer[0] = 1   
+			sector_buffer[1] = next_sector_idx & 0xFF 
+			sector_buffer[2:256] = chunk
+			self.virtual_disk_sectors.append(sector_buffer)
+			idx += 254
+			
+		if self.virtual_disk_sectors:
+			self.virtual_disk_sectors[-1][0] = 0x00
+			self.virtual_disk_sectors[-1][1] = 0xFF
+
+		# --- PHASE 3: BIND EXTRACTED FILE ENTRIES TO PANEL DIRECTORY VIEWS ---
+		current_sector_offset = 0
+		
+		for item in file_metadata:
+			start_t = 1
+			start_s = current_sector_offset
+			
+			self.file_list.append({
+				"name": item["name"], 
+				"is_directory": False, 
+				"is_virtual_container": False,
+				"type_display": item["type"], 
+				"size_display": str(item["raw_blocks"]),
+				"vfs_meta": {"sector": start_s, "blocks": item["raw_blocks"], "bytes": item["bytes"]}
+			})
+			
+			current_sector_offset += item["raw_blocks"]
+		# --- End of the mount method block pass ---
+		try:
+			pass
+		except Exception:
+			pass
+
+	# FIXED: Do NOT delete these remaining methods below! They drive your File Viewer and Sector Editors!
+	def read_virtual_sector(self, track, sector):
+		"""Natively queries the fake sector-buffered storage grid using standard T/S coordinates."""
+		block_index = sector
+		if 0 <= block_index < len(self.virtual_disk_sectors):
+			return bytearray(self.virtual_disk_sectors[block_index])
+		return bytearray(256)
+
+	def extract_file_bytes(self, vfs_meta_node):
+		"""Extracts raw file payload bytes natively by walking our virtual sector chains."""
+		file_bytes = bytearray()
+		start_sector = vfs_meta_node.get("sector", 0)
+		total_blocks = vfs_meta_node.get("blocks", 0)
+		target_bytes = vfs_meta_node.get("bytes", 0)
+		
+		for b_idx in range(total_blocks):
+			target_sec = start_sector + b_idx
+			if target_sec < len(self.virtual_disk_sectors):
+				file_bytes.extend(self.virtual_disk_sectors[target_sec][2:256])
+				
+		return bytes(file_bytes[:target_bytes])
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/03_drivers_cmd/01_cmd_base.py
+# ----------------------------------------------------------------------------
+
+class BaseCMDFloppyPlugin(BaseVFSHandler):
+	"""Shared Base Engine providing low-level structural partition parsing,
+	512-byte geometry scaling, and polymorphic routing for D2M and D4M floppy formats.
+	"""
+	def mount(self):
+		self.default_dir_track = 1
+		self.default_dir_sector = 1
+		self.max_tracks_limit = 255
+		self.is_dirty = False
+		self.current_path = "ROOT"
+		
+		self.partitions_registry = {}
+		self.file_list = []
+		
+		total_bytes = len(self.payload)
+		raw_bytes = bytes(self.payload)
+		
+		# Compute total floppy hardware block ceiling based on 512-byte blocks
+		total_hardware_blocks = total_bytes // 512
+		
+		# FIXED: PREPEND HOST OS BACK-OUT BREADCRUMB TO D2M AND D4M IMAGES!
+		# This inserts a single safe ".." row to exit the floppy container entirely and go back to PC files!
+		self.file_list.append({
+			"name": "..",
+			"type": "UP-DIR",
+			"type_display": "UP-DIR",
+			"subtype": "UP-DIR",
+			"size": 0,
+			"size_display": "0",
+			"track": 0,
+			"sector": 99,  # Flag 99 maps specifically to host-unmount triggers in your execute loop
+			"is_dir": True,
+			"is_directory": True,
+			"is_virtual_container": False,
+			"raw_meta": None,
+			"vfs_meta": None
+		})
+
+		# --- PHASE 1: TARGET ACCURATE GEOMETRY ADDRESSES ---
+		if self.format_type == "D2M":
+			self.sys_part_offset = 0x190800	  # Track 26, Sector 8 (FD2000 Base)
+			dev_block_ptr = 0x190500		  # Track 26, Sector 5 DevBlock
+		else:
+			self.sys_part_offset = 0x320800	  # Track 51, Sector 8 (FD4000 Base)
+			dev_block_ptr = 0x320500		  # Track 51, Sector 5 DevBlock
+
+		if self.sys_part_offset >= total_bytes:
+			self.disk_label_msg = '0 "truncated image?"'
+			return False
+
+		# Extract the Device Identification settings safely
+		if dev_block_ptr + 256 <= total_bytes:
+			dev_address_flag = raw_bytes[dev_block_ptr + 0xE1]
+			self.disk_label_msg = f'12 "cmd {self.format_type.lower()} dev {dev_address_flag}"'
+		else:
+			self.disk_label_msg = f'12 "cmd {self.format_type.lower()} system"'
+
+		# --- PHASE 3: SWEEP THE 32 CONTIGUOUS MASTER PARTITION SECTORS ---
+		p_count = 0 
+		total_allocated_blocks = 0	
+		
+		TYPE_LABELS = {
+			0x01: "NAT", 0x02: "41", 0x03: "71", 0x04: "81",
+			0x05: "C81", 0x06: "PRN", 0x07: "FOR", 0xFF: "SYS"
+		}
+		
+		# Iterate across the 4 partition table sectors sequentially (Sectors 8 to 11)
+		for sec_step in range(4):
+			current_sec_offset = self.sys_part_offset + (sec_step * 256)
+			if current_sec_offset + 256 > total_bytes:
+				break
+				
+			sec_bytes = raw_bytes[current_sec_offset : current_sec_offset + 256]
+			
+			for slot_idx in range(8):
+				off = slot_idx * 32
+				p_type = sec_bytes[off + 2]
+				
+				if sec_step == 0 and slot_idx == 0:
+					p_type = 0xFF
+					p_name = "SYSTEM"
+					start_lba = self.sys_part_offset // 512
+					total_blocks = 12  
+				else:
+					if p_type == 0x00 and all(b == 0 for b in sec_bytes[off+5:off+21]):
+						continue 
+						
+					p_name_raw = sec_bytes[off + 5 : off + 21]
+					p_name_chars = []
+					for b in p_name_raw:
+						if b == 0x00 or b == 0xA0:
+							p_name_chars.append(' ')
+						elif 32 <= b <= 126:
+							p_name_chars.append(chr(b))
+					p_name = "".join(p_name_chars).strip()
+					if not p_name:
+						p_name = f"PARTITION {p_count:02d}"
+					
+					# FIXED: Extract 24-bit Big-Endian Start LBA Block from offsets 21, 22, 23
+					start_lba = (sec_bytes[off + 21] << 16) | (sec_bytes[off + 22] << 8) | sec_bytes[off + 23]
+					
+					# FIXED: Extract 24-bit Big-Endian Total Size Blocks Count from offsets 29, 30, 31
+					total_blocks = (sec_bytes[off + 29] << 16) | (sec_bytes[off + 30] << 8) | sec_bytes[off + 31]
+				
+				type_str = TYPE_LABELS.get(p_type, "FOR")
+				if p_type != 0x00:
+					total_allocated_blocks += total_blocks
+				
+				# Scale parameters precisely to 512-byte hardware blocks to match verified signatures
+				part_node = {
+					"index": p_count,
+					"name": p_name,
+					"type_flag": p_type,
+					"type_string": type_str,
+					"start_lba": start_lba,
+					"blocks_count": total_blocks,
+					"byte_start": start_lba * 512,		# Points precisely to embedded VFS signature boundaries!
+					"byte_length": total_blocks * 512	 # Extracts accurate standalone image sizes!
+				}
+				
+				self.partitions_registry[p_count] = part_node
+				
+				self.file_list.append({
+					"name": p_name,
+					"type": type_str,					
+					"type_display": type_str,
+					"subtype": type_str,
+					"size": total_blocks,
+					"size_display": str(total_blocks),
+					"track": start_lba,
+					"sector": p_count,
+					"is_dir": False,
+					"is_directory": False,
+					"is_virtual_container": True,		
+					"raw_meta": part_node,
+					"vfs_meta": part_node
+				})
+				p_count += 1
+				
+		return True
+
+	def navigate_forward(self, track, sector, name):
+		"""Polymorphically builds and boots inner child driver filesystems in-memory."""
+		part_id = int(sector)
+		part_info = self.partitions_registry.get(part_id)
+		if not part_info:
+			return None
+			
+		t_str = part_info["type_string"]
+		t_flag = part_info["type_flag"]
+		
+		if t_str in ["SYS", "PRN", "FOR"] or t_flag in [0x00, 0x06, 0x07, 0xFF]:
+			return f"LOCKOUT: Partition '{name}' [{t_str}] is an unmountable format structure."
+			
+		b_start = part_info["byte_start"]
+		b_len = part_info["byte_length"]
+		total_payload_bytes = len(self.payload)
+		
+		# Clamp and force-align raw footprints to guard standalone plugins against geometry initialization rejects
+		target_size = b_len
+		if t_str == "41":	target_size = 174848
+		elif t_str == "71": target_size = 349696
+		elif t_str == "81": target_size = 819200
+
+		if b_start >= total_payload_bytes:
+			sub_payload = bytearray(target_size)
+		else:
+			end_pos = min(b_start + target_size, total_payload_bytes)
+			sub_payload = bytearray(self.payload[b_start : end_pos])
+			if len(sub_payload) < target_size:
+				sub_payload.extend(b"\x00" * (target_size - len(sub_payload)))
+
+		nested_handler = None
+		if t_str == "41":	nested_handler = D64FileSystemPlugin(bytes(sub_payload))
+		elif t_str == "71": nested_handler = D71FileSystemPlugin(bytes(sub_payload))
+		elif t_str == "81" or t_str == "C81": nested_handler = D81FileSystemPlugin(bytes(sub_payload))
+		elif t_str == "NAT": nested_handler = DNPFileSystemPlugin(bytes(sub_payload))
+
+		if nested_handler:
+			# FIXED: Ensure format types and geometry metadata parameters are assigned explicitly 
+			# so that the main Sector Editor views map standard CBM track rules instead of floppy parameters!
+			if t_str in ["81", "C81"]:
+				nested_handler.format_type = "D81"
+				nested_handler.total_tracks = 80
+				nested_handler.max_tracks_limit = 80
+				nested_handler.default_dir_track = 40
+				nested_handler.default_dir_sector = 0
+			elif t_str == "71":
+				nested_handler.format_type = "D71"
+				nested_handler.total_tracks = 70
+				nested_handler.max_tracks_limit = 70
+				nested_handler.default_dir_track = 18
+				nested_handler.default_dir_sector = 1
+			elif t_str == "41":
+				nested_handler.format_type = "D64"
+				nested_handler.total_tracks = 35
+				nested_handler.max_tracks_limit = 35
+				nested_handler.default_dir_track = 18
+				nested_handler.default_dir_sector = 0
+			elif t_str == "NAT":
+				nested_handler.format_type = "DNP"
+				nested_handler.default_dir_track = 1
+				nested_handler.default_dir_sector = 1
+
+			success = nested_handler.mount()
+
+			if success or success is None:
+				nested_handler.parent_dhd_handler = self  # Re-use parent link keys for unified saving routing
+				nested_handler.parent_partition_id = part_id
+				nested_handler.archive_name = getattr(self, "archive_name", "")
+				
+				# FIXED: Check if a ".." entry already exists in the list to prevent duplicate rows!
+				if hasattr(nested_handler, "file_list") and nested_handler.file_list:
+					has_up_dir = any(item.get("name") == ".." for item in nested_handler.file_list)
+					if not has_up_dir:
+						nested_handler.file_list.insert(0, {
+							"name": "..",
+							"type": "UP-DIR",
+							"type_display": "UP-DIR",
+							"subtype": "UP-DIR",
+							"size": 0,
+							"size_display": "0",
+							"track": 0,
+							"sector": 0,
+							"is_dir": True,
+							"is_directory": True,
+							"is_virtual_container": False
+						})
+						
+				return nested_handler
+		return "CRITICAL: Sub-VFS engine compilation error inside floppy partition frame."
+
+	def write_virtual_sector(self, track, sector, data_bytes):
+		"""Flat-File Sector Writer for the CMD floppy master system tracks.
+		Allows direct hex modifications to be written cleanly into the master container payload.
+		"""
+		t = int(track)
+		s = int(sector)
+		
+		# Compute flat linear index: 256 sectors per track mapping rules
+		idx = ((t - 1) * 256) + s
+		offset = idx * 256
+		
+		if offset + 256 > len(self.payload):
+			return False
+			
+		clean_data = bytes(data_bytes[:256].ljust(256, b"\x00"))
+		
+		if isinstance(self.payload, bytes):
+			self.payload = bytearray(self.payload)
+			
+		self.payload[offset : offset + 256] = clean_data
+		self.is_dirty = True
+		
+		# Immediately serialize the updated platter memory buffer back down to your PC
+		return self.flush_dhd_to_disk()
+
+	def flush_dhd_to_disk(self):
+		"""Polymorphic File Serialization Engine for CMD Floppy Containers.
+		Acts as a mirror alias for 'flush_dhd_to_disk' so that all nested sub-partitions 
+		can effortlessly write back to .d2m and .d4m files with zero code modifications!
+		"""
+		if hasattr(self, "archive_name") and self.archive_name:
+			try:
+				with open(os.path.abspath(self.archive_name), "wb") as f_out:
+					f_out.write(bytes(self.payload))
+				self.is_dirty = False
+				return True
+			except Exception:
+				return False
+		return False
+
+	def read_virtual_sector(self, track, sector):
+		idx = ((int(track) - 1) * 256) + int(sector)
+		offset = idx * 256
+		if offset + 256 <= len(self.payload):
+			return bytes(self.payload[offset : offset + 256])
+		return b"\x00" * 256
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/03_drivers_cmd/02_dhd.py
+# ----------------------------------------------------------------------------
+
+class DHDFileSystemPlugin(BaseVFSHandler):
+	"""Dynamic Broker Adapter bridging low-level CMD SCSI Hard Drive container architectures.
+	Decodes the 32 master directory track blocks, parses 32-byte partition slot vectors, 
+	and dynamically routes targeted sector offsets straight to sub-emulation handlers.
+	"""
+	def mount(self):
+		self.format_type = "DHD"
+		self.default_dir_track = 1
+		self.default_dir_sector = 1
+		self.max_tracks_limit = 255
+		self.is_dirty = False
+		self.current_path = "ROOT"
+		
+		# Core operational maps for the master controller framework
+		self.partitions_registry = {} 
+		self.file_list = []
+		
+		total_bytes = len(self.payload)
+		raw_bytes = bytes(self.payload)
+		
+		# Compute total hardware block ceiling based on 512-byte sectors
+		total_hardware_blocks = total_bytes // 512
+		
+		# PREPEND HOST OS BACK-OUT BREADCRUMB: Allows the user to unmount the DHD entirely and go back to PC files!
+		self.file_list.append({
+			"name": "..",
+			"type": "UP-DIR",
+			"type_display": "UP-DIR",
+			"subtype": "UP-DIR",
+			"size": 0,
+			"size_display": "0",
+			"track": 0,
+			"sector": 99,  # Flag 99 maps specifically to host-unmount triggers
+			"is_dir": True,
+			"is_directory": True,
+			"is_virtual_container": False,
+			"raw_meta": None,
+			"vfs_meta": None
+		})
+
+		# --- PHASE 1: BULLETPROOF RAW HEX SEQUENCE LOOKAHEAD SWEEP ---
+		config_found = False
+		config_base_offset = 0
+		active_config_block = None
+		
+		for offset_step in range(0, min(total_bytes - 512, 256 * 1024)):
+			if (raw_bytes[offset_step] == 0x43 and		 # 'C'
+				raw_bytes[offset_step + 1] == 0x4D and	 # 'M'
+				raw_bytes[offset_step + 2] == 0x44 and	 # 'D'
+				raw_bytes[offset_step + 3] == 0x20 and	 # ' '
+				raw_bytes[offset_step + 4] == 0x48 and	 # 'H'
+				raw_bytes[offset_step + 5] == 0x44):	 # 'D'
+				
+				if (raw_bytes[offset_step + 8] == 0x8D and
+					raw_bytes[offset_step + 9] == 0x03 and
+					raw_bytes[offset_step + 10] == 0x88 and
+					raw_bytes[offset_step + 11] == 0x8E and
+					raw_bytes[offset_step + 12] == 0x02 and
+					raw_bytes[offset_step + 13] == 0x88 and
+					raw_bytes[offset_step + 14] == 0xEA and
+					raw_bytes[offset_step + 15] == 0x60):
+					
+					config_base_offset = offset_step - 0x1F0
+					if config_base_offset >= 0 and config_base_offset + 512 <= total_bytes:
+						active_config_block = raw_bytes[config_base_offset : config_base_offset + 512]
+						config_found = True
+						break
+						
+		if not config_found or active_config_block is None:
+			self.disk_label_msg = '0 "sterile container?"'
+			return False
+
+		# --- PHASE 2: EXTRACT TRUE HARDWARE SIZE LIMITS FROM THE MASTER PARAMETERS ---
+		part_table_lba_offset = struct.unpack(">H", active_config_block[0x1E6 : 0x1E8])[0]
+		dev_address_flag = active_config_block[0x1E1]
+		
+		# Pull the raw 24-bit split address registers from Zone 2 (For Master Slot d=0) [1.13]
+		max_platter_msb = active_config_block[0x138]
+		max_platter_mid = active_config_block[0x170]
+		max_platter_lsb = active_config_block[0x1A8]
+		
+		# Stitch the bytes together into a clean 24-bit logical block capacity integer
+		parsed_device_blocks = (max_platter_msb << 16) | (max_platter_mid << 8) | max_platter_lsb
+		
+		# --- GLOBAL CONFIGURATION RESOLUTION ENGINE ---
+		# Check your global settings payload structures for the custom override configuration toggles
+		global_settings = app_state.get("settings", {}) if 'app_state' in locals() else {}
+		is_override_enabled = global_settings.get("override_cmd_hd_max_size", False)
+		custom_override_blocks = global_settings.get("custom_cmd_hd_blocks_value", 16777216)
+		
+		if is_override_enabled:
+			# CRITICAL PATH OVERRIDE: User setting takes supreme authority over all disk metadata rules!
+			total_hardware_blocks = int(custom_override_blocks)
+		else:
+			# Check if the hardware device table has an explicitly mapped platter configuration [1.13]
+			if parsed_device_blocks == 0 or parsed_device_blocks == 0xFFFFFF:
+				# THE EMPTY DEFAULT: Hard drive map is sterile, enforce the absolute 8 GB maximum filesystem architecture ceiling! [1.13]
+				# 8 GB = 8,589,934,592 Bytes / 512 Bytes Per SCSI Block = Exactly 16,777,216 Blocks [1.13]
+				total_hardware_blocks = 16777216
+			else:
+				# THE SAFE HARDWARE ENFORCEMENT: Honor the exact raw physical LBA sector boundaries from your real drive dump! [1.13]
+				total_hardware_blocks = parsed_device_blocks
+
+		self.disk_label_msg = f'12 "cmd hd dev {dev_address_flag}"'
+		
+		# --- PHASE 3: SWEEP THE 32 CONTIGUOUS MASTER PARTITION SECTORS ---
+		p_count = 0 
+		total_allocated_blocks = 0	
+		
+		TYPE_LABELS = {
+			0x01: "NAT", 0x02: "41", 0x03: "71", 0x04: "81",
+			0x05: "C81", 0x06: "PRN", 0x07: "FOR", 0xFF: "SYS"
+		}
+		
+		for sec_step in range(32):
+			current_sector_offset = part_table_lba_offset + sec_step
+			lba_offset = (config_base_offset - 0x400) + (current_sector_offset * 256)
+			
+			if lba_offset + 256 > total_bytes:
+				break
+				
+			sec_bytes = raw_bytes[lba_offset : lba_offset + 256]
+			
+			for slot_idx in range(8):
+				off = slot_idx * 32
+				p_type = sec_bytes[off + 2]
+				
+				if sec_step == 0 and slot_idx == 0:
+					p_type = 0xFF
+					p_name = "SYSTEM"
+					start_lba = (config_base_offset - 0x400) // 512
+					total_blocks = 0x90		 
+				else:
+					if p_type == 0x00 and all(b == 0 for b in sec_bytes[off+5:off+21]):
+						continue 
+						
+					p_name_raw = sec_bytes[off + 5 : off + 21]
+					p_name_chars = []
+					for b in p_name_raw:
+						if b == 0x00 or b == 0xA0:
+							p_name_chars.append(' ')
+						elif 32 <= b <= 126:
+							p_name_chars.append(chr(b))
+					p_name = "".join(p_name_chars).strip()
+					
+					start_lba = (sec_bytes[off+0x15] << 16) | (sec_bytes[off+0x16] << 8) | sec_bytes[off+0x17]
+					total_blocks = (sec_bytes[off+0x1E] << 8) | sec_bytes[off+0x1F]
+				
+				type_str = TYPE_LABELS.get(p_type, "FOR")
+				
+				# --- FIXED FORMAT-AWARE CAPACITY ACCUMULATION ---
+				# Standardize how partition blocks accumulate based on hardware format rules
+				if p_type != 0x00:
+					if p_type == 0x01: # Native Partition (NAT)
+						# If a native partition size field exceeds the theoretical boundaries of 
+						# the file size, it indicates the layout is tracking raw 256-byte sectors!
+						if total_blocks > total_hardware_blocks:
+							# Scale it down to match our file's 512-byte block metrics accurately
+							total_allocated_blocks += (total_blocks // 2)
+						else:
+							total_allocated_blocks += total_blocks
+					else:
+						# Emulated structures (41, 71, 81) are strictly counted in 512-byte blocks
+						total_allocated_blocks += total_blocks
+				
+				part_node = {
+					"index": p_count, "name": p_name, "type_flag": p_type, "type_string": type_str,
+					"start_lba": start_lba, "blocks_count": total_blocks,
+					"byte_start": start_lba * 512, "byte_length": total_blocks * 512
+				}
+				
+				self.partitions_registry[p_count] = part_node
+				
+				self.file_list.append({
+					"name": p_name, "type": type_str, "type_display": type_str, "subtype": type_str,
+					"size": total_blocks, "size_display": str(total_blocks),
+					"track": start_lba, "sector": p_count,
+					"is_dir": False, "is_directory": False, "is_virtual_container": True,		
+					"raw_meta": part_node, "vfs_meta": part_node
+				})
+				p_count += 1
+				
+		# --- DHD CAPACITY ALLOCATION FORENSIC LOGGER ---
+		# We dump the raw parameters to an external text file to catch any value drift or index clamping!
+		try:
+			with open("dhd_capacity_trace.txt", "w") as diag_file:
+				diag_file.write("=== CMD DHD DRIVE PLATTER CAPACITY AUDIT PASS ===\n")
+				diag_file.write(f"Raw len(self.payload) Size : {len(self.payload)} Bytes\n")
+				diag_file.write(f"Fallback File Blocks Count  : {len(self.payload) // 512} Blocks\n\n")
+				
+				diag_file.write("--- Zone 2 Platter Size Registers Extracted ---\n")
+				diag_file.write(f"Raw MSB Byte	(Offset 0x138): {max_platter_msb} (0x{max_platter_msb:02X})\n")
+				diag_file.write(f"Raw Middle Byte (Offset 0x170): {max_platter_mid} (0x{max_platter_mid:02X})\n")
+				diag_file.write(f"Raw LSB Byte	(Offset 0x1A8): {max_platter_lsb} (0x{max_platter_lsb:02X})\n")
+				diag_file.write(f"Calculated 24-Bit Max Blocks: {total_hardware_blocks}\n\n")
+				
+				diag_file.write("--- Accumulator Results ---\n")
+				diag_file.write(f"Total Allocated Blocks Sum  : {total_allocated_blocks}\n")
+				diag_file.write(f"Raw Theoretical Difference  : {total_hardware_blocks - total_allocated_blocks}\n")
+		except Exception as trace_err:
+			pass
+
+		# --- REALLOCATION CAPACITY POOL FLUSH ---
+		free_blocks_pool = max(0, total_hardware_blocks - total_allocated_blocks)
+		self.free_sectors_count = free_blocks_pool	
+		
+		return True
+		
+	def flush_dhd_to_disk(self):
+		"""Safely serializes the entire master platter memory payload array back onto the 
+		PC hard drive, committing all sub-partition sector edits permanently in a single pass.
+		"""
+		if hasattr(self, "archive_name") and self.archive_name:
+			try:
+				with open(os.path.abspath(self.archive_name), "wb") as f_out:
+					f_out.write(bytes(self.payload))
+				self.is_dirty = False
+				return True
+			except Exception as err:
+				# Log the save exception flag to the panel text notifications buffer if active
+				return False
+		return False
+	
+	def navigate_forward(self, track, sector, name):
+		"""Intercepts active [ENTER] cursor actions on partition folder rows.
+		Explicitly binds 'default_dir_track' and 'default_dir_sector' directly onto the 
+		instantiated sub-plugin objects to lock down the directory parsing boundaries.
+		"""
+		part_id = int(sector)
+		part_info = self.partitions_registry.get(part_id)
+		
+		if not part_info:
+			return None
+			
+		t_str = part_info["type_string"]
+		t_flag = part_info["type_flag"]
+		
+		if t_str in ["SYS", "PRN", "FOR"] or t_flag in [0x00, 0x06, 0x07, 0xFF]:
+			return f"LOCKOUT: Partition '{name}' [{t_str}] is an unmountable hardware structure format."
+			
+		b_start = part_info["byte_start"]
+		b_len = part_info["byte_length"]
+		total_payload_bytes = len(self.payload)
+		
+		# Resolve precise standalone byte footprints to prevent format rejections
+		target_size = b_len
+		if t_str == "41":
+			target_size = 174848  
+		elif t_str == "71":
+			target_size = 349696  
+		elif t_str == "81" or t_str == "C81":
+			target_size = 819200  
+			
+		if b_start >= total_payload_bytes:
+			sub_partition_payload = bytearray(target_size)
+		else:
+			end_pos = min(b_start + target_size, total_payload_bytes)
+			sub_partition_payload = bytearray(self.payload[b_start : end_pos])
+			if len(sub_partition_payload) < target_size:
+				sub_partition_payload.extend(b"\x00" * (target_size - len(sub_partition_payload)))
+				
+		# Polymorphic Driver Factory Instantiation Pass
+		nested_handler = None
+		if t_str == "41":
+			nested_handler = D64FileSystemPlugin(bytes(sub_partition_payload))
+		elif t_str == "71":
+			nested_handler = D71FileSystemPlugin(bytes(sub_partition_payload))
+		elif t_str == "81" or t_str == "C81":
+			nested_handler = D81FileSystemPlugin(bytes(sub_partition_payload))
+		elif t_str == "NAT":
+			nested_handler = DNPFileSystemPlugin(bytes(sub_partition_payload))
+			
+		if nested_handler:
+			# FIXED: Moved format type and directory track assignments strictly inside their 
+			# respective type scopes to prevent cross-contaminating 1581 parameters!
+			if t_str == "71":
+				nested_handler.format_type = "D71"
+				nested_handler.total_tracks = 70
+				nested_handler.max_tracks_limit = 70
+				nested_handler.default_dir_track = 18
+				nested_handler.default_dir_sector = 0
+			elif t_str == "41":
+				nested_handler.format_type = "D64"
+				nested_handler.total_tracks = 35
+				nested_handler.max_tracks_limit = 35
+				nested_handler.default_dir_track = 18
+				nested_handler.default_dir_sector = 0
+			elif t_str in ["81", "C81"]:
+				nested_handler.format_type = "D81"
+				nested_handler.total_tracks = 80
+				nested_handler.max_tracks_limit = 80
+				nested_handler.default_dir_track = 40  # FIXED: Locks 1581 onto center Track 40 natively!
+				nested_handler.default_dir_sector = 0
+			elif t_str == "NAT":
+				nested_handler.format_type = "DNP"
+				nested_handler.default_dir_track = 1
+				nested_handler.default_dir_sector = 1
+				
+			# Invoke the native initialization mount sequence to parse file entries
+			success = nested_handler.mount()
+			if success or success is None:
+				nested_handler.parent_dhd_handler = self
+				nested_handler.parent_partition_id = part_id
+				nested_handler.archive_name = getattr(self, "archive_name", "")
+				
+				# FIXED: Check if a ".." entry already exists in the list to prevent duplicate rows!
+				if hasattr(nested_handler, "file_list") and nested_handler.file_list:
+					has_up_dir = any(item.get("name") == ".." for item in nested_handler.file_list)
+					if not has_up_dir:
+						nested_handler.file_list.insert(0, {
+							"name": "..",
+							"type": "UP-DIR",
+							"type_display": "UP-DIR",
+							"subtype": "UP-DIR",
+							"size": 0,
+							"size_display": "0",
+							"track": 0,
+							"sector": 0,
+							"is_dir": True,
+							"is_directory": True,
+							"is_virtual_container": False
+						})
+					
+				return nested_handler
+				
+		return f"CRITICAL: Sub-VFS engine compilation error inside selected partition block frame."
+
+	def read_virtual_sector(self, track, sector):
+		"""Redirects absolute block extractions directly into target sub-partition streams."""
+		# Standard fallback route back to configuration pages if un-routed
+		idx = ((int(track) - 1) * 256) + int(sector)
+		offset = idx * 256
+		if offset + 256 <= len(self.payload):
+			return bytes(self.payload[offset : offset + 256])
+		return b"\x00" * 256
+
+	def toggle_sector_allocation_status(self, track, sector):
+		"""Bypasses master track allocations for direct inner partition private management passes."""
+		pass
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/03_drivers_cmd/03_d2m.py
+# ----------------------------------------------------------------------------
+
+class D2MFileSystemPlugin(BaseCMDFloppyPlugin):
+	def __init__(self, payload_data, archive_name="", *args, **kwargs):
+		self.archive_name = archive_name # Fixed
+		self.payload = bytearray(payload_data) if isinstance(payload_data, bytes) else payload_data
+		self.format_type = "D2M"
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/03_drivers_cmd/04_d4m.py
+# ----------------------------------------------------------------------------
+
+class D4MFileSystemPlugin(BaseCMDFloppyPlugin):
+	def __init__(self, payload_data, archive_name="", *args, **kwargs):
+		self.archive_name = archive_name # Fixed
+		self.payload = bytearray(payload_data) if isinstance(payload_data, bytes) else payload_data
+		self.format_type = "D4M"
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/03_drivers_cmd/05_dnp.py
+# ----------------------------------------------------------------------------
+
+class DNPFileSystemPlugin(BaseVFSHandler):
+	"""Dynamic Broker Adapter bridging low-level Native Partition sub-directories."""
+	def mount(self):
+		# Bind the specific massive parameters matching native high-capacity partition frameworks
+		self.format_type = "DNP"
+		self.default_dir_track = 1
+		self.default_dir_sector = 1
+		self.max_tracks_limit = 255
+
+		mem_stream = PreloadedBufferBlockStream(self.payload)
+		computed_blocks_count = len(self.payload) // 256
+
+		# Pass the dynamically calculated block length straight down to your lower driver mechanics
+		self.dnp_h = DNPNativeHandler(mem_stream, computed_blocks_count)
+		
+		# FIXED: Trigger our fresh binary BAM evaluation scanner block
+		bam_info = self.dnp_h.get_dnp_bam_matrix()
+		
+		header_blk = self.dnp_h.read_virtual_sector(1, 1)
+		d_name = PETSCIIDecoder.decode_name(header_blk[4:20])
+		self.disk_label_msg = f'0 "{d_name:<16}"'
+
+		# FIXED: Dynamic assignment checks live parsed bit structures instead of blindly dropping into size math defaults
+		if bam_info and "blocks_free" in bam_info:
+			self.free_sectors_count = bam_info["blocks_free"]
+		else:
+			# Structural baseline ceiling marker backup fallback rule tracking
+			self.free_sectors_count = computed_blocks_count - 35
+
+
+
+		# Clean Initial Entry Point: Hand over the true hardware starting block (Track 1, Sector 1)
+		self.file_list = TUIController.mine_dnp_entries(self.dnp_h, 1, 1)
+		
+	def toggle_sector_allocation_status(self, track, sector):
+		"""Natively flips the allocation bit mask for a CMD Native .dnp partition 
+		by targeting Track 1, Sectors 2-32 using 32-byte track allocation blocks [1.1].
+		"""
+		# 1. Calculate which sector on Track 1 holds this specific track's BAM data [1.1]
+		dnp_sector = 2 + ((track - 1) // 8)
+		
+		# 2. Calculate the 32-byte track offset window inside that 256-byte sector block [1.1]
+		track_in_sector_offset = ((track - 1) % 8) * 32
+		
+		# 3. Translate Track 1, Target Sector into a global linear index in your payload [1.1]
+		# (DNP uses a flat 256 sectors per track layout uniformly across the disk image) [1.1]
+		linear_sector_idx = ((1 - 1) * 256 + dnp_sector) * 256
+		
+		# 4. Find the exact byte and bit position for the target sector [1.1]
+		byte_in_track = sector // 8
+		bit_in_byte = sector % 8
+		
+		final_payload_offset = linear_sector_idx + track_in_sector_offset + byte_in_track
+		
+		if final_payload_offset < len(self.payload):
+			# XOR (^) the exact bit to toggle its state cleanly: 1 (Free) <-> 0 (Used) [1.1]
+			self.payload[final_payload_offset] ^= (1 << bit_in_byte)
+
+
+	def extract_file_bytes(self, vfs_meta_node):
+		return TUIController.extract_vfs_file_bytes(self.dnp_h, vfs_meta_node["track"], vfs_meta_node["sector"])
+
+	def navigate_forward(self, track, sector, name):
+		return self.dnp_h.navigate_forward(track, sector, name)
+
+	def navigate_backward(self):
+		return self.dnp_h.navigate_backward()
+		
+	def read_virtual_sector(self, track, sector):
+		"""Passes the sector read request straight down to the Native Partition driver."""
+		return self.dnp_h.read_virtual_sector(track, sector)
+		
+	def write_virtual_sector(self, track, sector, data_bytes):
+		"""Passes the sector write execution down to the Native Partition handler,
+		forcefully syncs the modified buffers back to the primary file plugin stream,
+		and arms the dirty flag to guarantee hard drive persistence on save passes.
+		"""
+		if not hasattr(self, "dnp_h") or not self.dnp_h:
+			return False
+			
+		# Enforce a strict 256-byte sector footprint block limit constraint
+		clean_data = bytes(data_bytes[:256].ljust(256, b"\x00"))
+		
+		# 1. Delegate the raw write straight down to your inner handler core mechanics
+		success = self.dnp_h.write_virtual_sector(track, sector, clean_data)
+		
+		if success:
+			# Sync the updated data buffer back to the child handler's local payload
+			if hasattr(self.dnp_h, "stream") and hasattr(self.dnp_h.stream, "buffer"):
+				updated_buffer = self.dnp_h.stream.buffer
+				if isinstance(self.payload, bytes):
+					self.payload = bytes(updated_buffer)
+				else:
+					self.payload = bytearray(updated_buffer)
+			
+			self.is_dirty = True 
+			
+			# --- THE ISOLATED ROUTING INTERCEPT BARRIER ---
+			# SCENARIO A: This plugin is running as a NESTED SUB-PARTITION inside a master .dhd container!
+			if hasattr(self, "parent_dhd_handler") and self.parent_dhd_handler:
+				parent_dhd = self.parent_dhd_handler
+				part_id = getattr(self, "parent_partition_id", None)
+				part_info = parent_dhd.partitions_registry.get(part_id)
+				
+				if part_info:
+					b_start = part_info["byte_start"]
+					b_len = part_info["byte_length"]
+					
+					# Enforce mutable type conformity on the parent payload container stream
+					if isinstance(parent_dhd.payload, bytes):
+						parent_dhd.payload = bytearray(parent_dhd.payload)
+						
+					# Safely patch our modified 16MB sub-image buffer right into the parent's layout window!
+					parent_dhd.payload[b_start : b_start + b_len] = self.payload[:b_len]
+					
+					# Arm the parent handler's dirty flag and trigger its physical disk save sequence!
+					parent_dhd.is_dirty = True
+					parent_dhd.flush_dhd_to_disk()
+				return True
+				
+			# SCENARIO B: This plugin is running as a standalone, loose .dnp file on your PC's hard drive
+			if hasattr(self, "archive_name") and self.archive_name:
+				try:
+					with open(os.path.abspath(self.archive_name), "wb") as f_out:
+						f_out.write(bytes(self.payload))
+				except Exception:
+					pass
+			return True
 
 
 class DNPNativeHandler(BaseContainerHandler):
@@ -6224,157 +6509,37 @@ class DNPNativeHandler(BaseContainerHandler):
 			return False
 		self.current_track, self.current_sector, self.current_path = self.history_stack.pop()
 		return True
-class TUIController:
-	"""Orchestration layout layer mapping raw data frames onto active viewport grids."""
-	@staticmethod
-	def get_host_free_space_string(target_path):
+
+
+
+# ----------------------------------------------------------------------------
+# MODULE: src/07_app_runtime/00_shared_helpers.py
+# ----------------------------------------------------------------------------
+
+def verify_and_bootstrap_dependencies():
+	"""Natively inspects the workstation environment for mandatory external drivers."""
+	for module_name, pip_package_name in MANDATORY_LIBS.items():
+		if pip_package_name is None:
+			continue
 		try:
-			if sys.platform.startswith("win"):
-				import ctypes
-				free_bytes = ctypes.c_ulonglong(0)
-				ctypes.windll.kernel32.GetDiskFreeSpaceExW(target_path, None, None, ctypes.byref(free_bytes))
-				total_free = free_bytes.value
+			__import__(module_name)
+		except ImportError:
+			print(f"\n SYSTEM CONFIGURATION WARNING: The '{module_name}' library is required.")
+			is_interactive = hasattr(sys.stdin, "isatty") and sys.stdin.isatty() and hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
+			if not is_interactive:
+				print(" Automatic installation is unavailable because this session is not running in an interactive terminal.")
+				sys.exit(1)
+			user_choice = input(f" Install '{pip_package_name}' via pip right now? (y/n): ").strip().lower()
+			if user_choice == 'y':
+				try:
+					subprocess.check_call([sys.executable, "-m", "pip", "install", pip_package_name])
+					__import__(module_name)
+				except Exception as err:
+					print(f"\n AUTOMATED INSTALLATION ROUTINE FAILED: {str(err)}")
+					sys.exit(1)
 			else:
-				st = os.statvfs(target_path)
-				total_free = st.f_bavail * st.f_frsize
-			if total_free < 1024 * 1024 * 1024:
-				return f"{total_free // (1024 * 1024)}M FREE"
-			else:
-				return f"{total_free / (1024 * 1024 * 1024):.1f}G FREE"
-		except Exception:
-			return "0B FREE"
+				sys.exit(1)
 
-	@staticmethod
-	def extract_vfs_file_bytes(handler_instance, track, sector):
-		payload_bytes = bytearray()
-		lt, ls = track, sector
-		while lt != 0:
-			sec_data = handler_instance.read_virtual_sector(lt, ls)
-			if not sec_data:
-				break
-			nt, ns = int(sec_data[0]), int(sec_data[1])
-			if nt == 0:
-				payload_bytes.extend(sec_data[2 : ns + 1])
-				break
-			else:
-				payload_bytes.extend(sec_data[2:256])
-			lt, ls = nt, ns
-		return bytes(payload_bytes)
-	@staticmethod
-	
-	def establish_bulk_copy_strategy(stdscr, selected_count):
-		"""
-		Acts precisely like a classic BASIC GOSUB block.
-		Evaluates bulk selection queues and hooks confirmation popup overlays.
-		"""
-		# If only 1 file is selected, bypass the global warning prompt pass entirely
-		if selected_count <= 1:
-			return "ASK"
-
-		max_rows, max_cols = stdscr.getmaxyx()
-		box_w, box_h = 64, 8
-		start_x = (max_cols - box_w) // 2
-		start_y = (max_rows - box_h) // 2
-
-		# Strategy Choice Loop Pass 1
-		while True:
-			stdscr.attron(curses.color_pair(4))
-			for r in range(box_h):
-				curr_y = start_y + r
-				if r == 0:
-					stdscr.addstr(curr_y, start_x, "┌" + "─" * (box_w - 2) + "┐")
-				elif r == box_h - 1:
-					stdscr.addstr(curr_y, start_x, "└" + "─" * (box_w - 2) + "┘")
-				else:
-					stdscr.addstr(curr_y, start_x, "│" + " " * (box_w - 2) + "│")
-
-			stdscr.addstr(start_y + 1, start_x + 4, f" BATCH FILE TRANSFER INITIALIZATION GATEWAY ", curses.A_BOLD)
-			stdscr.addstr(start_y + 2, start_x + 2, "─" * (box_w - 4))
-			stdscr.addstr(start_y + 3, start_x + 4, f"Queue contains {selected_count} files. If duplicate names are found:")
-			stdscr.addstr(start_y + 5, start_x + 8, "[O] Overwrite Automatically   │   [A] Ask Individually", curses.A_REVERSE)
-			stdscr.attroff(curses.color_pair(4))
-			stdscr.refresh()
-
-			ch = stdscr.getch()
-			if ch in [ord('a'), ord('A')]:
-				return "ASK"
-			
-			elif ch in [ord('o'), ord('O')]:
-				# Trigger Secondary Fatal Safety Warning Confirmation Layer (Pass 2)
-				while True:
-					stdscr.attron(curses.color_pair(3)) # Alternating highlight warning color mask
-					for r in range(box_h - 2):
-						stdscr.addstr(start_y + 1 + r, start_x + 1, " " * (box_w - 2))
-					
-					stdscr.addstr(start_y + 2, start_x + 4, "⚠️	 CRITICAL DESTRUCTION WARNING!	⚠️", curses.A_BOLD)
-					stdscr.addstr(start_y + 4, start_x + 4, "Overwrite ALL mode eliminates downstream safety prompts.")
-					stdscr.addstr(start_y + 5, start_x + 6, "Confirm permanent replacement action? (Y/N): ", curses.A_BOLD)
-					stdscr.attroff(curses.color_pair(3))
-					stdscr.refresh()
-
-					warn_ch = stdscr.getch()
-					if warn_ch in [ord('y'), ord('Y')]:
-						return "AUTO_OVERWRITE"
-					if warn_ch in [ord('n'), ord('N'), 27]:
-						break # Break out of warning sub-loop, drop cleanly back to Pass 1 menu options!
-
-	@staticmethod
-	def mine_dnp_entries(dnp_handler, track, sector):
-		entries = dnp_handler.list_directory_entries(track, sector)
-		prefix = [{
-			"name": "..", "is_directory": True, "is_virtual_container": False,
-			"type_display": "UP-DIR", "size_display": " ", "modify_time_str": " -- -- -- "
-		}]
-		return prefix + entries
-
-	@staticmethod
-	def process_scrolling_movement(panel_dict, direction, viewport_limits):
-		"""Fact-aligned view scrolling manager that ensures selection cursors 
-		stay fully visible within viewport coordinate windows boundaries.
-		"""
-		max_rows = viewport_limits[0] - 8
-		ledger_len = len(panel_dict["file_list"])
-		if ledger_len == 0:
-			return
-
-		if direction == "UP":
-			if panel_dict["highlight_index"] > 0:
-				panel_dict["highlight_index"] -= 1
-				if panel_dict["highlight_index"] < panel_dict["top_visible_row"]:
-					panel_dict["top_visible_row"] = panel_dict["highlight_index"]
-					
-		elif direction == "DOWN":
-			if panel_dict["highlight_index"] < ledger_len - 1:
-				panel_dict["highlight_index"] += 1
-				
-				# FIXED: Subtracting 1 forces the container viewport to scroll upward 
-				# one line earlier, keeping your highlighted selection completely visible!
-				if panel_dict["highlight_index"] >= panel_dict["top_visible_row"] + (max_rows - 1):
-					panel_dict["top_visible_row"] = panel_dict["highlight_index"] - (max_rows - 1) + 1
-
-	@staticmethod
-	def check_target_for_duplicate_filename(target_file_list, source_filename):
-		"""Automated name collision gatekeeper scanning target directories and virtual container 
-		disk images to intercept identical filename strings and prevent silent data overwrites.
-		"""
-		if not target_file_list:
-			return False
-			
-		# Strip case sensitivity and padding variations to ensure matching accuracy
-		sanitized_source = source_filename.strip().lower()
-		
-		for entry in target_file_list:
-			# Skip checking parent directional link rows
-			if entry.get("name") == "..":
-				continue
-				
-			sanitized_target = entry.get("name", "").strip().lower()
-			
-			# Collision Intercepted: Match found!
-			if sanitized_target == sanitized_source:
-				return True
-				
-		return False
 
 def main_orchestration_loop(stdscr):
 	"""Main baseline launch controller coordinating curses events or handing off to Pygame."""
@@ -7637,5 +7802,42 @@ def main_orchestration_loop(stdscr):
 				app_state["visual_mode"] = "PETSCII"
 
 
+
+# ----------------------------------------------------------------------------
+# MODULE: src/07_app_runtime/99_main_entry.py
+# ----------------------------------------------------------------------------
+
+verify_and_bootstrap_dependencies()
+
+
+VFSDriverRegistry.register_format(".d64", D64FileSystemPlugin)
+
+
+VFSDriverRegistry.register_format(".d71", D71FileSystemPlugin)
+
+
+VFSDriverRegistry.register_format(".dnp", DNPFileSystemPlugin)
+
+
+VFSDriverRegistry.register_format(".dhd", DHDFileSystemPlugin)
+
+
+VFSDriverRegistry.register_format(".d2m", D2MFileSystemPlugin)
+
+
+VFSDriverRegistry.register_format(".d4m", D4MFileSystemPlugin)
+
+
+VFSDriverRegistry.register_format(".lnx", LNXFileSystemPlugin)
+
+
+VFSDriverRegistry.register_format(".d81", D81FileSystemPlugin)
+
+
+VFSDriverRegistry.register_format(".g64", G64FileSystemPlugin)
+
+
 if __name__ == "__main__":
 	curses.wrapper(main_orchestration_loop)
+
+

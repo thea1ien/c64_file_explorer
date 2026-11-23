@@ -501,6 +501,10 @@ def verify_and_bootstrap_dependencies():
 			__import__(module_name)
 		except ImportError:
 			print(f"\n SYSTEM CONFIGURATION WARNING: The '{module_name}' library is required.")
+			is_interactive = hasattr(sys.stdin, "isatty") and sys.stdin.isatty() and hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
+			if not is_interactive:
+				print(" Automatic installation is unavailable because this session is not running in an interactive terminal.")
+				sys.exit(1)
 			user_choice = input(f" Install '{pip_package_name}' via pip right now? (y/n): ").strip().lower()
 			if user_choice == 'y':
 				try:

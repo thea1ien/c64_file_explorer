@@ -673,6 +673,8 @@ class SharedVFSController:
 						panel["file_list"] = HostSystemScanner.scan_directory(panel["backed_host_path"])
 						panel["free_space_msg"] = TUIController.get_host_free_space_string(panel["backed_host_path"])
 						panel["is_in_container"] = False
+						panel["read_only_container"] = False
+						panel["no_sector_editor"] = False
 						panel["vfs_handler"] = None
 						panel["disk_label_msg"] = None
 						panel["highlight_index"] = 0
@@ -712,6 +714,8 @@ class SharedVFSController:
 					panel["file_list"] = HostSystemScanner.scan_directory(panel["backed_host_path"])
 					panel["free_space_msg"] = TUIController.get_host_free_space_string(panel["backed_host_path"])
 					panel["is_in_container"] = False
+					panel["read_only_container"] = False
+					panel["no_sector_editor"] = False
 					panel["vfs_handler"] = None
 					panel["disk_label_msg"] = None
 			else:
@@ -840,6 +844,7 @@ class BaseVFSHandler:
 		self.file_list = []
 		self.disk_label_msg = ""
 		self.no_sector_editor = False
+		self.no_bam_editor = False
 		self.read_only = False # FIXED: Absolute baseline write protection flag register
 		
 		# ARCHITECTURE UPGRADE: Every driver class declares its own structural boundaries natively
@@ -2782,6 +2787,7 @@ class TUIDropDownMenu:
 		current_view_side = "left" if menu_idx == 0 else "right" if menu_idx == 4 else global_tui_state.get("active_side", "left") if global_tui_state else "left"
 		true_panel = global_tui_state[current_view_side] if global_tui_state else panel_state
 		
+		handler = true_panel.get("vfs_handler")		
 		is_virtual = true_panel.get("is_in_container", False)
 		no_editor_flag = true_panel.get("no_sector_editor", False)
 		show_sector_editor = is_virtual and not no_editor_flag
@@ -2811,7 +2817,7 @@ class TUIDropDownMenu:
 		elif menu_idx == 2:
 			menu_items = [" Mount Archive ", " Run Script Macro "]
 		elif menu_idx == 3:
-			menu_items = [" Settings ", " ───────────────── ", " Credits Info "]
+			menu_items = [" Settings ", " Dev Mode ", " ───────────────── ", " Credits Info "]
 
 		# FIXED: Guard check and geometry dimension variables restored cleanly! [1.26]
 		if not menu_items: 
@@ -3004,6 +3010,86 @@ class TUIDropDownMenu:
 					curr_type = "SEQ" if curr_type == "PRG" else "PRG"
 				elif active_row_idx == 3:
 					curr_override = not curr_override
+
+	@staticmethod
+	def show_dev_mode_popup(stdscr, global_tui_state):
+		"""Interactive live state inspector & boolean flag toggler for left/right panels."""
+		max_rows, max_cols = stdscr.getmaxyx()
+		box_w, box_h = 74, 21
+		start_x = max(0, (max_cols - box_w) // 2)
+		start_y = max(0, (max_rows - box_h) // 2)
+
+		inspect_side = global_tui_state.get("active_side", "left")
+		selected_row = 0
+
+		toggle_keys = [
+			"is_in_container",
+			"read_only_container",
+			"no_sector_editor",
+		]
+
+		while True:
+			p = global_tui_state[inspect_side]
+			handler = p.get("vfs_handler")
+			h_name = handler.__class__.__name__ if handler else "None (Host OS)"
+			h_fmt = getattr(handler, "format_type", "HOST") if handler else "HOST"
+			h_ro = getattr(handler, "read_only", False) if handler else False
+			h_no_se = getattr(handler, "no_sector_editor", False) if handler else False
+
+			rows = [
+				("Target Panel Side", f"< {inspect_side.upper()} >	(Press ENTER/SPACE to switch)", True),
+				("panel['is_in_container']", str(p.get("is_in_container", False)), True),
+				("panel['read_only_container']", str(p.get("read_only_container", False)), True),
+				("panel['no_sector_editor']", str(p.get("no_sector_editor", False)), True),
+				("handler.read_only", str(h_ro), handler is not None),
+				("handler.no_sector_editor", str(h_no_se), handler is not None),
+				("vfs_handler Class", h_name, False),
+				("handler.format_type", str(h_fmt), False),
+				("current_path", str(p.get("current_path", ""))[:42], False),
+				("backed_host_path", str(p.get("backed_host_path", ""))[:42], False),
+			]
+
+			stdscr.attron(curses.color_pair(4))
+			for r in range(box_h):
+				curr_y = start_y + r
+				if r == 0:
+					stdscr.addstr(curr_y, start_x, "┌" + "─" * (box_w - 2) + "┐")
+				elif r == box_h - 1:
+					stdscr.addstr(curr_y, start_x, "└" + "─" * (box_w - 2) + "┘")
+				else:
+					stdscr.addstr(curr_y, start_x, "│" + " " * (box_w - 2) + "│")
+
+			stdscr.addstr(start_y + 1, start_x + 3, " DEV MODE: LIVE PANEL & VFS STATE INSPECTOR", curses.A_BOLD)
+			stdscr.addstr(start_y + 2, start_x + 2, "─" * (box_w - 4))
+
+			for idx, (label, val, editable) in enumerate(rows):
+				tag = "[TOGGLE]" if editable else "[READ]  "
+				line_txt = f" {tag} {label:<28}: {val}"
+				attr = curses.color_pair(3) if idx == selected_row else (curses.color_pair(4) if editable else curses.color_pair(4) | curses.A_DIM)
+				stdscr.addstr(start_y + 4 + idx, start_x + 3, f"{line_txt:<{box_w - 6}}", attr)
+
+			footer = " [UP/DN] Select │ [ENTER/SPACE] Toggle Value │ [Q/ESC] Close "
+			stdscr.addstr(start_y + box_h - 3, start_x + ((box_w - len(footer)) // 2), footer, curses.A_REVERSE)
+			stdscr.attroff(curses.color_pair(4))
+			stdscr.refresh()
+
+			key = stdscr.getch()
+			if key in (27, ord('q'), ord('Q')):
+				break
+			elif key == curses.KEY_UP:
+				selected_row = (selected_row - 1) % len(rows)
+			elif key == curses.KEY_DOWN:
+				selected_row = (selected_row + 1) % len(rows)
+			elif key in (10, 13, curses.KEY_ENTER, ord(' ')):
+				if selected_row == 0:
+					inspect_side = "right" if inspect_side == "left" else "left"
+				elif selected_row in (1, 2, 3):
+					k = toggle_keys[selected_row - 1]
+					p[k] = not bool(p.get(k, False))
+				elif selected_row == 4 and handler is not None:
+					handler.read_only = not bool(getattr(handler, "read_only", False))
+				elif selected_row == 5 and handler is not None:
+					handler.no_sector_editor = not bool(getattr(handler, "no_sector_editor", False))
 
 
 	@staticmethod
@@ -7375,25 +7461,32 @@ def main_orchestration_loop(stdscr):
 			# FIXED: Dynamically capture the true live active panel context state natively right on input loop pass!
 			# This stops stale .lnx metadata profile properties from locking out your C64 features.
 			active_p_side = app_state.get("active_side", "left")
-			live_panel_state = app_state[active_p_side]
-			
 			m_idx = app_state.get("active_menu_header_idx", 0)
 			i_idx = app_state.get("active_menu_item_idx", 0)
+			menu_side = "left" if m_idx == 0 else "right" if m_idx == 4 else active_p_side
+			live_panel_state = app_state[menu_side]
+			menu_handler = live_panel_state.get("vfs_handler")
 			
-			# Evaluate current active container parameters cleanly
-			show_editor = live_panel_state.get("is_in_container", False) and not live_panel_state.get("no_sector_editor", False)
+			# Evaluate current menu target panel parameters cleanly
+			show_editor = live_panel_state.get("is_in_container", False) and menu_handler is not None and not live_panel_state.get("no_sector_editor", False)
 			
 			if m_idx == 0 or m_idx == 4:
-				# FIXED: Unified your loop length maps with our new dynamic 3-row layout array list!
-				# Now len(items) evaluates to 3, letting your cursor drop down smoothly to selection 2.
-				items = [" Rescan Directory ", " View Sector Editor ", " View BAM Editor ", " View GCR Stream "] if show_editor else [" Rescan Directory "]
+				if show_editor:
+					fmt = getattr(menu_handler, "format_type", "HOST")
+					items = [" Rescan Directory ", " View Sector Editor ", " View BAM Editor "]
+					if fmt == "G64":
+						items.append(" View GCR Stream ")
+					if fmt == "D81":
+						items.append(" Create 1581 Partition ")
+				else:
+					items = [" Rescan Directory "]
 
 			elif m_idx == 1:
 				items = [" View File ", " Copy File Out ", " Delete Node "]
 			elif m_idx == 2:
 				items = [" Mount Archive ", " Run Script Macro "]
 			elif m_idx == 3:
-				items = [" Settings ", " ───────────────── ", " Credits Info "]
+				items = [" Settings ", " Dev Mode ", " ───────────────── ", " Credits Info "]
 			else:
 				items = [" Close Sub-Menu "]
 
@@ -7421,7 +7514,10 @@ def main_orchestration_loop(stdscr):
 					if m_idx == 3 and i_idx == 0:
 						TUIDropDownMenu.show_settings_popup(stdscr, app_state)
 						continue
-					elif m_idx == 3 and i_idx == 2:
+					elif m_idx == 3 and i_idx == 1:
+						TUIDropDownMenu.show_dev_mode_popup(stdscr, app_state)
+						continue
+					elif m_idx == 3 and i_idx == 3:
 						TUIDropDownMenu.show_credits_popup(stdscr)
 						continue
 					elif (m_idx == 0 or m_idx == 4) and i_idx == 1:	 # View Sector Editor action chosen
@@ -7719,13 +7815,16 @@ def main_orchestration_loop(stdscr):
 					elif (m_idx == 0 or m_idx == 4) and i_idx == 3:	 # View GCR Stream Viewer chosen
 						target_side = "left" if m_idx == 0 else "right"
 						menu_panel = app_state[target_side]
+						handler_instance = menu_panel.get("vfs_handler")
 						
-						if menu_panel.get("is_in_container") and ".g64" in menu_panel["current_path"].lower():
-							handler_instance = menu_panel.get("vfs_handler")
-							
+						if menu_panel.get("is_in_container") and getattr(handler_instance, "format_type", "") == "G64":
 							# Capture raw binary track 18 data stream immediately upon entry
 							start_track = 18
-							raw_bytes = bytearray(handler_instance.get_raw_gcr_track_stream(start_track) if hasattr(handler_instance, "get_raw_gcr_track_stream") else b"")
+							if hasattr(handler_instance, "get_raw_gcr_track_stream"):
+								track_data, _ = handler_instance.get_raw_gcr_track_stream(start_track)
+								raw_bytes = bytearray(track_data)
+							else:
+								raw_bytes = bytearray()
 							
 							app_state["gcr_viewer_state"] = {
 								"archive_name": menu_panel["current_path"].split("//")[-1],

@@ -1,0 +1,6 @@
+{
+    "version": "1.9.0",
+    "visual_mode": "STANDARD",
+    "respect_cbm_extensions": true,
+    "default_cbm_filetype": "PRG"
+}

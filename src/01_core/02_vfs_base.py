@@ -146,6 +146,8 @@ class SharedVFSController:
 						panel["file_list"] = HostSystemScanner.scan_directory(panel["backed_host_path"])
 						panel["free_space_msg"] = TUIController.get_host_free_space_string(panel["backed_host_path"])
 						panel["is_in_container"] = False
+						panel["read_only_container"] = False
+						panel["no_sector_editor"] = False
 						panel["vfs_handler"] = None
 						panel["disk_label_msg"] = None
 						panel["highlight_index"] = 0
@@ -185,6 +187,8 @@ class SharedVFSController:
 					panel["file_list"] = HostSystemScanner.scan_directory(panel["backed_host_path"])
 					panel["free_space_msg"] = TUIController.get_host_free_space_string(panel["backed_host_path"])
 					panel["is_in_container"] = False
+					panel["read_only_container"] = False
+					panel["no_sector_editor"] = False
 					panel["vfs_handler"] = None
 					panel["disk_label_msg"] = None
 			else:
@@ -313,6 +317,7 @@ class BaseVFSHandler:
 		self.file_list = []
 		self.disk_label_msg = ""
 		self.no_sector_editor = False
+		self.no_bam_editor = False
 		self.read_only = False # FIXED: Absolute baseline write protection flag register
 		
 		# ARCHITECTURE UPGRADE: Every driver class declares its own structural boundaries natively

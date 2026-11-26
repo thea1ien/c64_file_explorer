@@ -857,25 +857,32 @@ def main_orchestration_loop(stdscr):
 			# FIXED: Dynamically capture the true live active panel context state natively right on input loop pass!
 			# This stops stale .lnx metadata profile properties from locking out your C64 features.
 			active_p_side = app_state.get("active_side", "left")
-			live_panel_state = app_state[active_p_side]
-			
 			m_idx = app_state.get("active_menu_header_idx", 0)
 			i_idx = app_state.get("active_menu_item_idx", 0)
+			menu_side = "left" if m_idx == 0 else "right" if m_idx == 4 else active_p_side
+			live_panel_state = app_state[menu_side]
+			menu_handler = live_panel_state.get("vfs_handler")
 			
-			# Evaluate current active container parameters cleanly
-			show_editor = live_panel_state.get("is_in_container", False) and not live_panel_state.get("no_sector_editor", False)
+			# Evaluate current menu target panel parameters cleanly
+			show_editor = live_panel_state.get("is_in_container", False) and menu_handler is not None and not live_panel_state.get("no_sector_editor", False)
 			
 			if m_idx == 0 or m_idx == 4:
-				# FIXED: Unified your loop length maps with our new dynamic 3-row layout array list!
-				# Now len(items) evaluates to 3, letting your cursor drop down smoothly to selection 2.
-				items = [" Rescan Directory ", " View Sector Editor ", " View BAM Editor ", " View GCR Stream "] if show_editor else [" Rescan Directory "]
+				if show_editor:
+					fmt = getattr(menu_handler, "format_type", "HOST")
+					items = [" Rescan Directory ", " View Sector Editor ", " View BAM Editor "]
+					if fmt == "G64":
+						items.append(" View GCR Stream ")
+					if fmt == "D81":
+						items.append(" Create 1581 Partition ")
+				else:
+					items = [" Rescan Directory "]
 
 			elif m_idx == 1:
 				items = [" View File ", " Copy File Out ", " Delete Node "]
 			elif m_idx == 2:
 				items = [" Mount Archive ", " Run Script Macro "]
 			elif m_idx == 3:
-				items = [" Settings ", " ───────────────── ", " Credits Info "]
+				items = [" Settings ", " Dev Mode ", " ───────────────── ", " Credits Info "]
 			else:
 				items = [" Close Sub-Menu "]
 
@@ -903,7 +910,10 @@ def main_orchestration_loop(stdscr):
 					if m_idx == 3 and i_idx == 0:
 						TUIDropDownMenu.show_settings_popup(stdscr, app_state)
 						continue
-					elif m_idx == 3 and i_idx == 2:
+					elif m_idx == 3 and i_idx == 1:
+						TUIDropDownMenu.show_dev_mode_popup(stdscr, app_state)
+						continue
+					elif m_idx == 3 and i_idx == 3:
 						TUIDropDownMenu.show_credits_popup(stdscr)
 						continue
 					elif (m_idx == 0 or m_idx == 4) and i_idx == 1:	 # View Sector Editor action chosen
@@ -1201,13 +1211,16 @@ def main_orchestration_loop(stdscr):
 					elif (m_idx == 0 or m_idx == 4) and i_idx == 3:	 # View GCR Stream Viewer chosen
 						target_side = "left" if m_idx == 0 else "right"
 						menu_panel = app_state[target_side]
+						handler_instance = menu_panel.get("vfs_handler")
 						
-						if menu_panel.get("is_in_container") and ".g64" in menu_panel["current_path"].lower():
-							handler_instance = menu_panel.get("vfs_handler")
-							
+						if menu_panel.get("is_in_container") and getattr(handler_instance, "format_type", "") == "G64":
 							# Capture raw binary track 18 data stream immediately upon entry
 							start_track = 18
-							raw_bytes = bytearray(handler_instance.get_raw_gcr_track_stream(start_track) if hasattr(handler_instance, "get_raw_gcr_track_stream") else b"")
+							if hasattr(handler_instance, "get_raw_gcr_track_stream"):
+								track_data, _ = handler_instance.get_raw_gcr_track_stream(start_track)
+								raw_bytes = bytearray(track_data)
+							else:
+								raw_bytes = bytearray()
 							
 							app_state["gcr_viewer_state"] = {
 								"archive_name": menu_panel["current_path"].split("//")[-1],
